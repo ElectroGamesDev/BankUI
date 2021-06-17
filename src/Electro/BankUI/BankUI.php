@@ -26,6 +26,9 @@ class BankUI extends PluginBase implements Listener{
     {
         self::$instance = $this;
         $this->getServer()->getPluginManager()->registerEvents($this, $this);
+        if (!file_exists($this->getDataFolder() . "Players")){
+            mkdir($this->getDataFolder() . "Players");
+        }
     }
 
     public function onJoin(PlayerJoinEvent $event){
