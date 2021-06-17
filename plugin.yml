@@ -1,0 +1,10 @@
+main : Electro\BankUI\BankUI
+name: BankUI
+version: 1.0.0
+api: 3.0.0
+Author: Electro
+depend: ["EconomyAPI"]
+
+commands:
+  bank:
+    description: Opens The BankUI
