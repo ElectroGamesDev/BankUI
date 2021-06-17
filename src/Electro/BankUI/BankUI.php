@@ -93,7 +93,7 @@ class BankUI extends PluginBase implements Listener{
             switch ($result) {
                 case 0;
                     $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAML);
-                    if ($playerBankMoney->get("Money") === 0){
+                    if ($playerBankMoney->get("Money") == 0){
                         $player->sendMessage("§aYou have no money in the bank to withdraw");
                         return true;
                     }
@@ -105,7 +105,7 @@ class BankUI extends PluginBase implements Listener{
             switch ($result) {
                 case 1;
                     $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAML);
-                    if ($playerBankMoney->get("Money") === 0){
+                    if ($playerBankMoney->get("Money") == 0){
                         $player->sendMessage("§aYou have no money in the bank to withdraw");
                         return true;
                     }
@@ -142,7 +142,7 @@ class BankUI extends PluginBase implements Listener{
             }
 
             $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAML);
-            if ($playerBankMoney->get("Money") === 0){
+            if ($playerBankMoney->get("Money") == 0){
                 $player->sendMessage("§aYou have no money in the bank to withdraw");
                 return true;
             }
@@ -178,7 +178,7 @@ class BankUI extends PluginBase implements Listener{
                 case 0;
                     $playerMoney = EconomyAPI::getInstance()->myMoney($player);
                     $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAML);
-                    if ($playerMoney === 0){
+                    if ($playerMoney == 0){
                         $player->sendMessage("§aYou do not have enough money to deposit into the bank");
                         return true;
                     }
@@ -191,7 +191,7 @@ class BankUI extends PluginBase implements Listener{
                 case 1;
                     $playerMoney = EconomyAPI::getInstance()->myMoney($player);
                     $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAML);
-                    if ($playerMoney === 0){
+                    if ($playerMoney == 0){
                         $player->sendMessage("§aYou do not have enough money to deposit into the bank");
                         return true;
                     }
@@ -228,7 +228,7 @@ class BankUI extends PluginBase implements Listener{
             }
             $playerMoney = EconomyAPI::getInstance()->myMoney($player);
             $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAML);
-            if ($playerMoney === 0){
+            if ($playerMoney == 0){
                 $player->sendMessage("§aYou do not have enough money to deposit into the bank");
                 return true;
             }
