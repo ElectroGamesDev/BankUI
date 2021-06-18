@@ -4,7 +4,9 @@ namespace Electro\BankUI;
 
 use onebone\economyapi\EconomyAPI;
 use jojoe77777\FormAPI\SimpleForm;
+use jojoe77777\FormAPI\CustomForm;
 
+use pocketmine\block\Block;
 use pocketmine\Server;
 use pocketmine\Player;
 
@@ -34,7 +36,6 @@ class BankUI extends PluginBase implements Listener{
 
     public function onJoin(PlayerJoinEvent $event){
         $player = $event->getPlayer();
-
         if (!file_exists($this->getDataFolder() . "Players/" . $player->getName() . ".yml")) {
             new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAML, array(
                 "Money" => 0,
@@ -56,8 +57,9 @@ class BankUI extends PluginBase implements Listener{
     {
         $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAML);
         $playerMoney = EconomyAPI::getInstance()->myMoney($player);
-        $api = Server::getInstance()->getPluginManager()->getPlugin("FormAPI");
-        $form = $api->createSimpleForm(function (Player $player, int $data = null) {
+//        $api = Server::getInstance()->getPluginManager()->getPlugin("FormAPI");
+//        $form = $api->createSimpleForm(function (Player $player, int $data = null) {
+        $form = new SimpleForm(function (Player $player, int $data = null){
             $result = $data;
             if ($result === null) {
                 return true;
@@ -85,8 +87,9 @@ class BankUI extends PluginBase implements Listener{
     {
         $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAML);
         $playerMoney = EconomyAPI::getInstance()->myMoney($player);
-        $api = Server::getInstance()->getPluginManager()->getPlugin("FormAPI");
-        $form = $api->createSimpleForm(function (Player $player, int $data = null) {
+//        $api = Server::getInstance()->getPluginManager()->getPlugin("FormAPI");
+//        $form = $api->createSimpleForm(function (Player $player, int $data = null) {
+        $form = new SimpleForm(function (Player $player, int $data = null){
             $result = $data;
             if ($result === null) {
                 return true;
@@ -135,8 +138,9 @@ class BankUI extends PluginBase implements Listener{
     {
         $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAML);
         $playerMoney = EconomyAPI::getInstance()->myMoney($player);
-        $api = Server::getInstance()->getPluginManager()->getPlugin("FormAPI");
-        $form = $api->createCustomForm(function (Player $player, array $data = null) {
+//        $api = Server::getInstance()->getPluginManager()->getPlugin("FormAPI");
+//        $form = $api->createCustomForm(function (Player $player, array $data = null) {
+        $form = new CustomForm(function (Player $player, $data) {
             $result = $data;
             if ($result === null) {
                 return true;
@@ -169,8 +173,9 @@ class BankUI extends PluginBase implements Listener{
     {
         $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAML);
         $playerMoney = EconomyAPI::getInstance()->myMoney($player);
-        $api = Server::getInstance()->getPluginManager()->getPlugin("FormAPI");
-        $form = $api->createSimpleForm(function (Player $player, int $data = null) {
+//        $api = Server::getInstance()->getPluginManager()->getPlugin("FormAPI");
+//        $form = $api->createSimpleForm(function (Player $player, int $data = null) {
+        $form = new SimpleForm(function (Player $player, int $data = null){
             $result = $data;
             if ($result === null) {
                 return true;
@@ -221,8 +226,9 @@ class BankUI extends PluginBase implements Listener{
     {
         $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAML);
         $playerMoney = EconomyAPI::getInstance()->myMoney($player);
-        $api = Server::getInstance()->getPluginManager()->getPlugin("FormAPI");
-        $form = $api->createCustomForm(function (Player $player, array $data = null) {
+//        $api = Server::getInstance()->getPluginManager()->getPlugin("FormAPI");
+//        $form = $api->createCustomForm(function (Player $player, array $data = null) {
+        $form = new CustomForm(function (Player $player, $data) {
             $result = $data;
             if ($result === null) {
                 return true;
