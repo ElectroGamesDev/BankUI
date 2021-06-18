@@ -3,6 +3,7 @@
 namespace Electro\BankUI;
 
 use onebone\economyapi\EconomyAPI;
+use jojoe77777\FormAPI\SimpleForm;
 
 use pocketmine\Server;
 use pocketmine\Player;
