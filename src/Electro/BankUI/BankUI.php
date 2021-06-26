@@ -10,6 +10,8 @@
  * (at your option) any later version.
  */
 
+declare(strict_types=1);
+
 namespace Electro\BankUI;
 
 use onebone\economyapi\EconomyAPI;
@@ -32,7 +34,7 @@ use pocketmine\utils\Config;
 
 class BankUI extends PluginBase implements Listener{
 
-    const IS_BETA = true;
+    private const IS_BETA = true;
 
     private static $instance;
     public $player;
@@ -76,7 +78,7 @@ class BankUI extends PluginBase implements Listener{
         $playerMoney = EconomyAPI::getInstance()->myMoney($player);
 //        $api = Server::getInstance()->getPluginManager()->getPlugin("FormAPI");
 //        $form = $api->createSimpleForm(function (Player $player, int $data = null) {
-        $form = new SimpleForm(function (Player $player, int $data = null){
+        $form = new SimpleForm(function (Player $player, int $data = null) use ($playerBankMoney){
             $result = $data;
             if ($result === null) {
                 return true;
@@ -91,6 +93,10 @@ class BankUI extends PluginBase implements Listener{
             }
             switch ($result) {
                 case 2;
+                    if ($playerBankMoney->get("Money") == 0){
+                        $player->sendMessage("§aYou have no money in the bank to transfer money");
+                        return true;
+                    }
                     $this->transferCustomForm($player);
             }
         });
@@ -111,7 +117,7 @@ class BankUI extends PluginBase implements Listener{
         $playerMoney = EconomyAPI::getInstance()->myMoney($player);
 //        $api = Server::getInstance()->getPluginManager()->getPlugin("FormAPI");
 //        $form = $api->createSimpleForm(function (Player $player, int $data = null) {
-        $form = new SimpleForm(function (Player $player, int $data = null){
+        $form = new SimpleForm(function (Player $player, int $data = null) use ($playerBankMoney){
             $result = $data;
             if ($result === null) {
                 return true;
@@ -142,6 +148,10 @@ class BankUI extends PluginBase implements Listener{
             }
             switch ($result) {
                 case 2;
+                    if ($playerBankMoney->get("Money") == 0){
+                        $player->sendMessage("§aYou have no money in the bank to withdraw");
+                        return true;
+                    }
                     $this->withdrawCustomForm($player);
             }
         });
@@ -169,18 +179,6 @@ class BankUI extends PluginBase implements Listener{
             }
 
             $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAML);
-            if ($playerBankMoney->get("Money") == 0){
-                $player->sendMessage("§aYou have no money in the bank to withdraw");
-                return true;
-            }
-            if ($playerBankMoney->get("Money") < $data[1]){
-                $player->sendMessage("§aYou do not have enough money in your bank to withdraw $" . $data[1]);
-                return true;
-            }
-            if (!is_numeric($data[1])){
-                $player->sendMessage("§aYou did not enter a valid amount");
-                return true;
-            }
             EconomyAPI::getInstance()->addMoney($player, $data[1]);
             $player->sendMessage("§aYou have withdrew $" . $data[1] . " from the bank");
             $playerBankMoney->set("Money", $playerBankMoney->get("Money") - $data[1]);
@@ -189,7 +187,7 @@ class BankUI extends PluginBase implements Listener{
 
         $form->setTitle("§lWithdraw");
         $form->addLabel("Balance: $" . $playerBankMoney->get("Money"));
-        $form->addInput("§rEnter amount to withdraw", "100000");
+        $form->addSlider("§rSelect amount to withdraw", 1, $playerBankMoney->get("Money"));
         $form->sendtoPlayer($player);
         return $form;
     }
@@ -234,6 +232,10 @@ class BankUI extends PluginBase implements Listener{
             }
             switch ($result) {
                 case 2;
+                    if ($playerMoney == 0){
+                        $player->sendMessage("§aYou do not have enough money to deposit into the bank");
+                        return true;
+                    }
                     $this->depositCustomForm($player);
             }
         });
@@ -261,27 +263,15 @@ class BankUI extends PluginBase implements Listener{
             }
             $playerMoney = EconomyAPI::getInstance()->myMoney($player);
             $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAML);
-            if ($playerMoney == 0){
-                $player->sendMessage("§aYou do not have enough money to deposit into the bank");
-                return true;
-            }
-            if ($playerMoney < $data[1]){
-                $player->sendMessage("§aYou do not have enough money to deposit $" . $data[1] . " into the bank");
-                return true;
-            }
-            if (!is_numeric($data[1])){
-                $player->sendMessage("§aYou did not enter a valid amount");
-                return true;
-            }
             $player->sendMessage("§aYou have deposited $" . $data[1] . " into the bank");
-            $playerBankMoney->set("Money", $playerBankMoney->get("Money") + $data[1]);
+            $playerBankMoney->set("Money", $playerBankMoney->get("Money", 0) + $data[1]);
             EconomyAPI::getInstance()->reduceMoney($player, $data[1]);
             $playerBankMoney->save();
         });
 
         $form->setTitle("§lDeposit");
         $form->addLabel("Balance: $" . $playerBankMoney->get("Money"));
-        $form->addInput("§rEnter amount to deposit", "100000");
+        $form->addSlider("§rSelect amount to deposit", 1, (int) floor($playerMoney));
         $form->sendtoPlayer($player);
         return $form;
     }
@@ -317,34 +307,22 @@ class BankUI extends PluginBase implements Listener{
 
             $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAML);
             $otherPlayerBankMoney = new Config($this->getDataFolder() . "Players/" . $playerName . ".yml", Config::YAML);
-            if ($playerBankMoney->get("Money") == 0){
-                $player->sendMessage("§aYou have no money in the bank to transfer money");
-                return true;
-            }
-            if ($playerBankMoney->get("Money") < $data[2]){
-                $player->sendMessage("§aYou do not have enough money in your bank to transfer $" . $data[2]);
-                return true;
-            }
-            if (!is_numeric($data[2])){
-                $player->sendMessage("§aYou did not enter a valid amount");
-                return true;
-            }
             $player->sendMessage("§aYou have transferred $" . $data[2] . " into " . $playerName . "'s bank account");
             if ($this->getServer()->getPlayer($playerName)) {
                 $otherPlayer = $this->getServer()->getPlayer($playerName);
                 $otherPlayer->sendMessage("§a" . $player->getName() . " has transferred $" . $data[2] . " into your bank account");
             }
             $playerBankMoney->set("Money", $playerBankMoney->get("Money") - $data[2]);
-            $otherPlayerBankMoney->set("Money", $otherPlayerBankMoney->get("Money") + $data[2]);
+            $otherPlayerBankMoney->set("Money", $otherPlayerBankMoney->get("Money", 0) + $data[2]);
             $playerBankMoney->save();
             $otherPlayerBankMoney->save();
-            });
+        });
 
 
         $form->setTitle("§lWithdraw");
         $form->addLabel("Balance: $" . $playerBankMoney->get("Money"));
         $form->addDropdown("Select a Player", $this->playerList[$player->getName()]);
-        $form->addInput("§rEnter amount to transfer", "100000");
+        $form->addSlider("§rSelect amount to transfer", 1, $playerBankMoney->get("Money"));
         $form->sendtoPlayer($player);
         return $form;
     }
