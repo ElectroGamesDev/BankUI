@@ -1,5 +1,15 @@
 <?php
 
+/*
+ * [FORKED] A BankUI Plugin For PocketMine-MP
+ * Copyright (C) 2021 ElectroGamesYT, KygekDev
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
 namespace Electro\BankUI;
 
 use onebone\economyapi\EconomyAPI;
@@ -22,6 +32,8 @@ use pocketmine\utils\Config;
 
 class BankUI extends PluginBase implements Listener{
 
+    const IS_BETA = true;
+
     private static $instance;
     public $player;
     public $playerList = [];
@@ -29,6 +41,10 @@ class BankUI extends PluginBase implements Listener{
     public function onEnable()
     {
         self::$instance = $this;
+        $this->getLogger()->warning("You are using forked version of BankUI, maintained by KygekDev. There might be no support from the original developer if you use this plugin.");
+        if (self::IS_BETA) {
+            $this->getLogger()->warning("This plugin is under BETA. There may be some bugs. Use this plugin with caution. DSIDWY!");
+        }
         $this->getServer()->getPluginManager()->registerEvents($this, $this);
         if (!file_exists($this->getDataFolder() . "Players")){
             mkdir($this->getDataFolder() . "Players");
