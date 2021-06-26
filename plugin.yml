@@ -1,8 +1,10 @@
 main : Electro\BankUI\BankUI
 name: BankUI
-version: 1.0.0
+version: 2.0.0
 api: 3.0.0
-Author: Electro
+authors:
+- Electro
+- KygekDev
 depend: ["EconomyAPI"]
 
 commands:
