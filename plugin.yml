@@ -18,3 +18,9 @@ depend: ["EconomyAPI"]
 commands:
   bank:
     description: Opens The BankUI
+    permission: bankui.bank
+
+permissions:
+  bankui.bank:
+    description: Permission to open the BankUI
+    default: true

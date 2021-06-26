@@ -9,14 +9,17 @@ A PocketMine-MP plugin which allows players to store their money in a bank. This
 
 # Features
 
- - Withdraw Money into Bank
- - Deposit Money from Bank
- - Transfer Money to Other Players Bank Accounts
+- Withdraw Money into Bank
+- Deposit Money from Bank
+- Transfer Money to Other Players Bank Accounts
+- Command Permission (`bankui.bank`)
 
 # Command
 
 **Command:** `/bank`\
-**Description:** Opens The BankUI
+**Description:** Opens The BankUI\
+**Permission:** `bankui.bank`\
+**Default:** `true`
 
 # Download
 

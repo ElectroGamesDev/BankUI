@@ -44,6 +44,7 @@ class BankUI extends PluginBase implements Listener{
     {
         self::$instance = $this;
         $this->getLogger()->warning("You are using forked version of BankUI, maintained by KygekDev. There might be no support from the original developer if you use this plugin.");
+        /** @phpstan-ignore-next-line */
         if (self::IS_BETA) {
             $this->getLogger()->warning("This plugin is under BETA. There may be some bugs. Use this plugin with caution. DSIDWY!");
         }
@@ -65,11 +66,12 @@ class BankUI extends PluginBase implements Listener{
     public function onCommand(CommandSender $sender, Command $command, string $label, array $args): bool{
         switch($command->getName()){
             case "bank":
-                if($sender instanceof Player){
-                    $this->bankForm($sender);
+                if (!$sender instanceof Player) {
+                    $sender->sendMessage("§aThis command can only be executed by a player!");
+                    return true;
                 }
+                $this->bankForm($sender);
         }
-        return true;
     }
 
     public function bankForm($player)
@@ -199,7 +201,7 @@ class BankUI extends PluginBase implements Listener{
         $playerMoney = EconomyAPI::getInstance()->myMoney($player);
 //        $api = Server::getInstance()->getPluginManager()->getPlugin("FormAPI");
 //        $form = $api->createSimpleForm(function (Player $player, int $data = null) {
-        $form = new SimpleForm(function (Player $player, int $data = null){
+        $form = new SimpleForm(function (Player $player, int $data = null) use ($playerMoney){
             $result = $data;
             if ($result === null) {
                 return true;
