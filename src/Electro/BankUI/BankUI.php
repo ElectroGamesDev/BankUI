@@ -79,7 +79,7 @@ class BankUI extends PluginBase implements Listener{
             }
         });
 
-        $form->setTitle("§lBank");
+        $form->setTitle("§lBank Menu");
         $form->setContent("Balance: $" . $playerBankMoney->get("Money"));
         $form->addButton("§lWithdraw Money\n§r§dClick to withdraw...",0,"textures/ui/icon_book_writable");
         $form->addButton("§lDeposit Money\n§r§dClick to deposit...",0,"textures/items/map_filled");
@@ -130,7 +130,7 @@ class BankUI extends PluginBase implements Listener{
             }
         });
 
-        $form->setTitle("§lWithdraw");
+        $form->setTitle("§lWithdraw Menu");
         $form->setContent("Balance: $" . $playerBankMoney->get("Money"));
         $form->addButton("§lWithdraw All\n§r§dClick to withdraw...",0,"textures/ui/icon_book_writable");
         $form->addButton("§lWithdraw Half\n§r§dClick to withdraw...",0,"textures/ui/icon_book_writable");
@@ -165,13 +165,17 @@ class BankUI extends PluginBase implements Listener{
                 $player->sendMessage("§aYou did not enter a valid amount");
                 return true;
             }
+            if ($data[1] <= 0){
+                $player->sendMessage("§aYou must enter an amount greater than 0");
+                return true;
+            }
             EconomyAPI::getInstance()->addMoney($player, $data[1]);
             $player->sendMessage("§aYou have withdrew $" . $data[1] . " from the bank");
             $playerBankMoney->set("Money", $playerBankMoney->get("Money") - $data[1]);
             $playerBankMoney->save();
         });
 
-        $form->setTitle("§lWithdraw");
+        $form->setTitle("§lWithdraw Menu");
         $form->addLabel("Balance: $" . $playerBankMoney->get("Money"));
         $form->addInput("§rEnter amount to withdraw", "100000");
         $form->sendtoPlayer($player);
@@ -222,7 +226,7 @@ class BankUI extends PluginBase implements Listener{
             }
         });
 
-        $form->setTitle("§lDeposit");
+        $form->setTitle("§lDeposit Menu");
         $form->setContent("Balance: $" . $playerBankMoney->get("Money"));
         $form->addButton("§lDeposit All\n§r§dClick to deposit...",0,"textures/items/map_filled");
         $form->addButton("§lDeposit Half\n§r§dClick to deposit...",0,"textures/items/map_filled");
@@ -245,10 +249,10 @@ class BankUI extends PluginBase implements Listener{
             }
             $playerMoney = EconomyAPI::getInstance()->myMoney($player);
             $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAML);
-            if ($playerMoney == 0){
-                $player->sendMessage("§aYou do not have enough money to deposit into the bank");
-                return true;
-            }
+//            if ($playerMoney == 0){
+//                $player->sendMessage("§aYou do not have enough money to deposit into the bank");
+//                return true;
+//            }
             if ($playerMoney < $data[1]){
                 $player->sendMessage("§aYou do not have enough money to deposit $" . $data[1] . " into the bank");
                 return true;
@@ -257,13 +261,17 @@ class BankUI extends PluginBase implements Listener{
                 $player->sendMessage("§aYou did not enter a valid amount");
                 return true;
             }
+            if ($data[1] <= 0){
+                $player->sendMessage("§aYou must enter an amount greater than 0");
+                return true;
+            }
             $player->sendMessage("§aYou have deposited $" . $data[1] . " into the bank");
             $playerBankMoney->set("Money", $playerBankMoney->get("Money") + $data[1]);
             EconomyAPI::getInstance()->reduceMoney($player, $data[1]);
             $playerBankMoney->save();
         });
 
-        $form->setTitle("§lDeposit");
+        $form->setTitle("§lDeposit Menu");
         $form->addLabel("Balance: $" . $playerBankMoney->get("Money"));
         $form->addInput("§rEnter amount to deposit", "100000");
         $form->sendtoPlayer($player);
@@ -325,7 +333,7 @@ class BankUI extends PluginBase implements Listener{
             });
 
 
-        $form->setTitle("§lWithdraw");
+        $form->setTitle("§lTransfer Menu");
         $form->addLabel("Balance: $" . $playerBankMoney->get("Money"));
         $form->addDropdown("Select a Player", $this->playerList[$player->getName()]);
         $form->addInput("§rEnter amount to transfer", "100000");
