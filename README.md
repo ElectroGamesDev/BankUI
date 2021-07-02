@@ -16,6 +16,7 @@
 ![Bank2](https://user-images.githubusercontent.com/34932094/122729370-b7e55f00-d23e-11eb-8aa6-1d8e8b47e70f.PNG)
 ![Bank3](https://user-images.githubusercontent.com/34932094/122729371-b7e55f00-d23e-11eb-8a94-ee292bab50f8.PNG)
 ![Bank4](https://user-images.githubusercontent.com/34932094/122729372-b7e55f00-d23e-11eb-9a8c-f44571718108.PNG)
-![Bank6](https://user-images.githubusercontent.com/34932094/124204240-43af8480-daa4-11eb-90c8-bcf1a15366b0.PNG)
+![Bank6](https://user-images.githubusercontent.com/34932094/124215248-48cafe80-dab9-11eb-930d-df1b113a7d3d.PNG)
+
 # Credits
 - Icon from www.flaticon.com
