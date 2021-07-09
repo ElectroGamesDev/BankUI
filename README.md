@@ -17,6 +17,8 @@
 ![Bank3](https://user-images.githubusercontent.com/34932094/122729371-b7e55f00-d23e-11eb-8a94-ee292bab50f8.PNG)
 ![Bank4](https://user-images.githubusercontent.com/34932094/122729372-b7e55f00-d23e-11eb-9a8c-f44571718108.PNG)
 ![Bank6](https://user-images.githubusercontent.com/34932094/124215248-48cafe80-dab9-11eb-930d-df1b113a7d3d.PNG)
+# Permissions
+- Permission for Admins to View Other Players Bank Transactions: bankui.admin
 # Config
 ```
 # If true, players will get daily interest for the money in their bank
