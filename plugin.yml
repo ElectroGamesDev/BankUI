@@ -1,6 +1,6 @@
 main : Electro\BankUI\BankUI
 name: BankUI
-version: 1.0.1
+version: 1.0.0
 api: 3.0.0
 Author: Electro
 depend: ["EconomyAPI"]
@@ -8,3 +8,8 @@ depend: ["EconomyAPI"]
 commands:
   bank:
     description: Opens The BankUI
+    
+permissions:
+  bankui.admin:
+    description: Permission to view other players transactions
+    default: op
