@@ -80,6 +80,14 @@ class BankUI extends PluginBase implements Listener{
         switch($command->getName()){
             case "bank":
                 if($sender instanceof Player){
+                    if (isset($args[0]) && $sender->hasPermission("bankui.admin") || isset($args[0]) && $sender->isOp()){
+                        if (!file_exists($this->getDataFolder() . "Players/" . $args[0] . ".yml")){
+                            $sender->sendMessage("§c§lError: §r§aThis player does not have a bank account");
+                            return true;
+                        }
+                        $this->otherTransactionsForm($sender, $args[0]);
+                        return true;
+                    }
                     $this->bankForm($sender);
                 }
         }
@@ -396,6 +404,10 @@ class BankUI extends PluginBase implements Listener{
                 $player->sendMessage("§aYou did not enter a valid amount");
                 return true;
             }
+            if ($data[2] <= 0){
+                $player->sendMessage("§aYou must transfer at least $1");
+                return true;
+            }
             $player->sendMessage("§aYou have transferred $" . $data[2] . " into " . $playerName . "'s bank account");
             if ($this->getServer()->getPlayer($playerName)) {
                 $otherPlayer = $this->getServer()->getPlayer($playerName);
@@ -444,6 +456,28 @@ class BankUI extends PluginBase implements Listener{
         }
         $form->addButton("§l§cEXIT\n§r§dClick to close...",0,"textures/ui/cancel");
         $form->sendtoPlayer($player);
+        return $form;
+    }
+
+    public function otherTransactionsForm($sender, $player)
+    {
+        $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player . ".yml", Config::YAML);
+        $form = new SimpleForm(function (Player $player, int $data = null){
+            $result = $data;
+            if ($result === null) {
+                return true;
+            }
+        });
+
+        $form->setTitle("§l" . $player . "'s Transactions");
+        if ($playerBankMoney->get('Transactions') === 0){
+            $form->setContent($player . " has not made any transactions yet");
+        }
+        else {
+            $form->setContent($playerBankMoney->get("Transactions"));
+        }
+        $form->addButton("§l§cEXIT\n§r§dClick to close...",0,"textures/ui/cancel");
+        $form->sendtoPlayer($sender);
         return $form;
     }
 
