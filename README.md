@@ -7,10 +7,10 @@
  - Transaction Log
  - Daily Interest
  - Configurable Interest Rates
- - Admins Can View Other Players Bank Transactions With "/bank <PlayerName>"
+ - Admins Can View Other Players Bank Transactions With "/bank {PlayerName}"
 # Command
 - /bank
-- /bank <PlayerName>
+- /bank {PlayerName}
 # Important
 - This plugin Requires EconomyAPI by OneBone
 # Images
