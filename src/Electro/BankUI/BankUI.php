@@ -136,6 +136,49 @@ class BankUI extends PluginBase implements Listener{
         return $form;
     }
 
+    public function adminForm($player)
+    {
+        $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAML);
+        $playerMoney = EconomyAPI::getInstance()->myMoney($player);
+//        $api = Server::getInstance()->getPluginManager()->getPlugin("FormAPI");
+//        $form = $api->createSimpleForm(function (Player $player, int $data = null) {
+        $form = new SimpleForm(function (Player $player, int $data = null){
+            $result = $data;
+            if ($result === null) {
+                return true;
+            }
+            switch ($result) {
+                case 0;
+                    $this->withdrawForm($player);
+            }
+            switch ($result) {
+                case 1;
+                    $this->depositForm($player);
+            }
+            switch ($result) {
+                case 2;
+                    $this->transferCustomForm($player);
+            }
+            switch ($result) {
+                case 3;
+                    $this->transactionsForm($player);
+            }
+        });
+
+        $form->setTitle("§l" . $player->getName() . "'s Bank");
+        $form->setContent("Balance: $" . $playerBankMoney->get("Money"));
+        $form->addButton("§lAdd Money\n§r§dClick to add...",0,"textures/ui/icon_book_writable");
+        $form->addButton("§lTake Money\n§r§dClick to take...",0,"textures/items/map_filled");
+        $form->addButton("§lSet Money\n§r§dClick to set...",0,"textures/ui/FriendsIcon");
+//        $form->addButton("§lTransactions\n§r§dClick to transfer...",0,"textures/ui/inventory_icon");
+//        $form->addButton("§lTransactions\n§r§dClick to transfer...",0,"textures/ui/invite_base");
+        $form->addButton("§lTransactions\n§r§dClick to open...",0,"textures/ui/lock_color");
+        $form->addButton("§l§cEXIT\n§r§dClick to close...",0,"textures/ui/cancel");
+        $form->sendtoPlayer($player);
+        return $form;
+    }
+
+
     public function withdrawForm($player)
     {
         $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAML);
