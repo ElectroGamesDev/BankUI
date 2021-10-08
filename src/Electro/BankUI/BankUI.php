@@ -178,6 +178,44 @@ class BankUI extends PluginBase implements Listener{
         return $form;
     }
 
+    public function adminGiveForm($player, $action)
+    {
+        $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAM
+//        $api = Server::getInstance()->getPluginManager()->getPlugin("FormAPI");
+//        $form = $api->createCustomForm(function (Player $player, array $data = null) {
+        $form = new CustomForm(function (Player $player, $data) {
+            $result = $data;
+            if ($result === null) {
+                return true;
+            }
+            $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAML);
+             
+            if (!is_numeric($data[1])){
+                $player->sendMessage("§aYou did not enter a valid amount");
+                return true;
+            }
+            if ($data[1] <= 0){
+                $player->sendMessage("§aYou must enter an amount greater than 0");
+                return true;
+            }
+            $player->sendMessage("§aYou have deposited $" . $data[1] . " into the bank");
+            if ($playerBankMoney->get('Transactions') === 0){
+                $playerBankMoney->set('Transactions', date("§b[d/m/y]") . "§e - §aDeposited $" . $data[1] . "\n");
+            }
+            else {
+                $playerBankMoney->set('Transactions', $playerBankMoney->get('Transactions') . date("§b[d/m/y]") . "§e - §aDeposited $" . $data[1] . "\n");
+            }
+            $playerBankMoney->set("Money", $playerBankMoney->get("Money") + $data[1]);
+            $playerBankMoney->save();
+        });
+
+        $form->setTitle("§l" . $player->getName() . "'s Bank");;
+        $form->addLabel("Balance: $" . $playerBankMoney->get("Money"));
+        $form->addInput("§rEnter amount to deposit", "100000");
+        $form->sendtoPlayer($player);
+        return $form;
+    }
+
 
     public function withdrawForm($player)
     {
