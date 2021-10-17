@@ -180,7 +180,7 @@ class BankUI extends PluginBase implements Listener{
 
     public function adminGiveForm($player, $action)
     {
-        $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAM
+        $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAML);
 //        $api = Server::getInstance()->getPluginManager()->getPlugin("FormAPI");
 //        $form = $api->createCustomForm(function (Player $player, array $data = null) {
         $form = new CustomForm(function (Player $player, $data) {
