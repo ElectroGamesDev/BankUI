@@ -211,7 +211,15 @@ class BankUI extends PluginBase implements Listener{
 
         $form->setTitle("§l" . $player->getName() . "'s Bank");;
         $form->addLabel("Balance: $" . $playerBankMoney->get("Money"));
-        $form->addInput("§rEnter amount to deposit", "100000");
+        if ($action = 0){
+            $form->addInput("§rEnter amount to give", "100000");
+        }
+        if ($action = 1){
+            $form->addInput("§rEnter amount to take", "100000");
+        }
+        if ($action = 2){
+            $form->addInput("§rEnter amount to set", "100000");
+        }
         $form->sendtoPlayer($player);
         return $form;
     }
