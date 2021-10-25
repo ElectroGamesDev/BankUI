@@ -1,5 +1,8 @@
+# DO NOT TOUCH
+config-ver: 1
+
 # If true, players will get daily interest for the money in their bank
-enable-interest: = true
+enable-interest: true
 
 # Interst Rates is in percentage so if interst-rates = 50, it means 50% Interest Rates, if it is set at 1, it means 1% interest rates. (It is recommended to keep this low)
 interest-rates: 1
