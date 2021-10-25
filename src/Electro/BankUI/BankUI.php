@@ -41,6 +41,9 @@ class BankUI extends PluginBase implements Listener{
         if ($this->getConfig()->get("enable-interest") == true) {
             $this->getScheduler()->scheduleRepeatingTask(new InterestTask($this), 1100);
         }
+        if ($this->getConfig()->get("config-ver") != 1) {
+            $this->getLogger()->info("§l§cWARNING: §r§cBankUI's config is NOT up to date. Please delete the config.yml and restart the server.);
+        }
     }
 
     public function dailyInterest(){
