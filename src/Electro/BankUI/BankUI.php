@@ -85,7 +85,7 @@ class BankUI extends PluginBase implements Listener{
                             $sender->sendMessage("§c§lError: §r§aThis player does not have a bank account");
                             return true;
                         }
-                        $this->otherTransactionsForm($sender, $args[0]);
+                        $this->adminForm($sender, $args[0]);
                         return true;
                     }
                     $this->bankForm($sender);
@@ -136,7 +136,7 @@ class BankUI extends PluginBase implements Listener{
         return $form;
     }
 
-    public function adminForm($player)
+    public function adminForm($player, $target)
     {
         $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAML);
         $playerMoney = EconomyAPI::getInstance()->myMoney($player);
@@ -149,19 +149,19 @@ class BankUI extends PluginBase implements Listener{
             }
             switch ($result) {
                 case 0;
-                    $this->withdrawForm($player);
+                    $this->adminGiveForm($player, 0, $target);
             }
             switch ($result) {
                 case 1;
-                    $this->depositForm($player);
+                    $this->adminGiveForm($player, 1, $target);
             }
             switch ($result) {
                 case 2;
-                    $this->transferCustomForm($player);
+                    $this->adminGiveForm($player, 2, $target);
             }
             switch ($result) {
                 case 3;
-                    $this->transactionsForm($player);
+                    $this-otherTransactionsForm($player, $target);
             }
         });
 
@@ -178,9 +178,9 @@ class BankUI extends PluginBase implements Listener{
         return $form;
     }
 
-    public function adminGiveForm($player, $action)
+    public function adminGiveForm($player, $action, $target)
     {
-        $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAML);
+        $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $target . ".yml", Config::YAML);
 //        $api = Server::getInstance()->getPluginManager()->getPlugin("FormAPI");
 //        $form = $api->createCustomForm(function (Player $player, array $data = null) {
         $form = new CustomForm(function (Player $player, $data) {
@@ -188,7 +188,7 @@ class BankUI extends PluginBase implements Listener{
             if ($result === null) {
                 return true;
             }
-            $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAML);
+            $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $target . ".yml", Config::YAML);
              
             if (!is_numeric($data[1])){
                 $player->sendMessage("§aYou did not enter a valid amount");
@@ -198,15 +198,40 @@ class BankUI extends PluginBase implements Listener{
                 $player->sendMessage("§aYou must enter an amount greater than 0");
                 return true;
             }
-            $player->sendMessage("§aYou have deposited $" . $data[1] . " into the bank");
-            if ($playerBankMoney->get('Transactions') === 0){
-                $playerBankMoney->set('Transactions', date("§b[d/m/y]") . "§e - §aDeposited $" . $data[1] . "\n");
+
+            if ($action == 0){
+                $playerBankMoney->set("Money", $playerBankMoney->get("Money") + $data[1]);
+                $playerBankMoney->save();
+                $player->sendMessage("§aYou have added $" . $data[1] . " into " . $target . "'s bank");
+                if ($playerBankMoney->get('Transactions') === 0){
+                    $playerBankMoney->set('Transactions', date("§b[d/m/y]") . "§e - §aAdmin added $" . $data[1] . "\n");
+                }
+                else {
+                    $playerBankMoney->set('Transactions', $playerBankMoney->get('Transactions') . date("§b[d/m/y]") . "§e - §aAdmin added $" . $data[1] . "\n");
+                }
             }
-            else {
-                $playerBankMoney->set('Transactions', $playerBankMoney->get('Transactions') . date("§b[d/m/y]") . "§e - §aDeposited $" . $data[1] . "\n");
+            if ($action == 1){
+                $playerBankMoney->set("Money", $playerBankMoney->get("Money") - $data[1]);
+                $playerBankMoney->save();
+                $player->sendMessage("§aYou have took $" . $data[1] . " into " . $target . "'s bank");
+                if ($playerBankMoney->get('Transactions') === 0){
+                    $playerBankMoney->set('Transactions', date("§b[d/m/y]") . "§e - §aAdmin took $" . $data[1] . "\n");
+                }
+                else {
+                    $playerBankMoney->set('Transactions', $playerBankMoney->get('Transactions') . date("§b[d/m/y]") . "§e - §aAdmin took $" . $data[1] . "\n");
+                }
             }
-            $playerBankMoney->set("Money", $playerBankMoney->get("Money") + $data[1]);
-            $playerBankMoney->save();
+            if ($action == 3){
+                $playerBankMoney->set("Money", $data[1]);
+                $playerBankMoney->save();
+                $player->sendMessage("§aYou have set " . $target . "'s bank balance to $" . $data[1]);
+                if ($playerBankMoney->get('Transactions') === 0){
+                    $playerBankMoney->set('Transactions', date("§b[d/m/y]") . "§e - §aAdmin set balance to $" . $data[1] . "\n");
+                }
+                else {
+                    $playerBankMoney->set('Transactions', $playerBankMoney->get('Transactions') . date("§b[d/m/y]") . "§e - §aAdmin set balance to $" . $data[1] . "\n");
+                }
+            }
         });
 
         $form->setTitle("§l" . $player->getName() . "'s Bank");;
