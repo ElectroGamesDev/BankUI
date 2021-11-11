@@ -31,7 +31,7 @@
 - Set Money:
 ```BankUI::getInstance()->setMoney($player, $amount);```
 - Get Money:
-```BankUI::getInstance()->getMoney($player, $amount);```
+```BankUI::getInstance()->getMoney($player);```
 - Add Transaction:
 ```BankUI::getInstance()->addTransaction($player, $message);```
 # Config
