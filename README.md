@@ -7,7 +7,7 @@
  - Transaction Log
  - Daily Interest
  - Configurable Interest Rates
- - Admins Can View Other Players Bank Transactions With "/bank {PlayerName}"
+ - Admins Can Manage Other Players Bank With "/bank {PlayerName}"
 # Command
 - /bank
 - /bank {PlayerName}
@@ -19,10 +19,26 @@
 ![Bank3](https://user-images.githubusercontent.com/34932094/122729371-b7e55f00-d23e-11eb-8a94-ee292bab50f8.PNG)
 ![Bank4](https://user-images.githubusercontent.com/34932094/122729372-b7e55f00-d23e-11eb-9a8c-f44571718108.PNG)
 ![Bank6](https://user-images.githubusercontent.com/34932094/124215248-48cafe80-dab9-11eb-930d-df1b113a7d3d.PNG)
+![admn](https://user-images.githubusercontent.com/34932094/141248349-65d9629c-2e30-42d3-aa4a-d05909c5908e.PNG)
 # Permissions
-- Permission for Admins to View Other Players Bank Transactions: bankui.admin
+- bankui.admin
+# Developers
+- You can give/take/set/get players money/transactions using functions.
+- Add Money:
+```BankUI::getInstance()->addMoney($player, $amount);```
+- Take Money:
+```BankUI::getInstance()->takeMoney($player, $amount);```
+- Set Money:
+```BankUI::getInstance()->setMoney($player, $amount);```
+- Get Money:
+```BankUI::getInstance()->getMoney($player, $amount);```
+- Add Transaction:
+```BankUI::getInstance()->addTransaction($player, $message);```
 # Config
 ```
+# DO NOT TOUCH
+config-ver: 1
+
 # If true, players will get daily interest for the money in their bank
 enable-interest: = true
 
