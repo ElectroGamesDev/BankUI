@@ -1,6 +1,6 @@
 main : Electro\BankUI\BankUI
 name: BankUI
-version: 1.0.4
+version: 1.0.3
 api: 3.0.0
 Author: Electro
 depend: ["EconomyAPI"]
