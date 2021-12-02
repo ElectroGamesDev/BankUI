@@ -22,18 +22,19 @@
 ![admn](https://user-images.githubusercontent.com/34932094/141248349-65d9629c-2e30-42d3-aa4a-d05909c5908e.PNG)
 # Permissions
 - bankui.admin
-# Developers
+# Developer API
 - You can give/take/set/get players money/transactions using functions.
+
 - Add Money:
-```BankUI::getInstance()->addMoney($player, $amount);```
+```BankUI::getInstance()->addMoney($playerName, $amount);```
 - Take Money:
-```BankUI::getInstance()->takeMoney($player, $amount);```
+```BankUI::getInstance()->takeMoney($playerName, $amount);```
 - Set Money:
-```BankUI::getInstance()->setMoney($player, $amount);```
+```BankUI::getInstance()->setMoney($playerName, $amount);```
 - Get Money:
-```BankUI::getInstance()->getMoney($player);```
+```BankUI::getInstance()->getMoney($playerName);```
 - Add Transaction:
-```BankUI::getInstance()->addTransaction($player, $message);```
+```BankUI::getInstance()->addTransaction($playerName, $message);```
 # Config
 ```
 # DO NOT TOUCH
