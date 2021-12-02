@@ -11,5 +11,5 @@ commands:
     
 permissions:
   bankui.admin:
-    description: Permission to view other players transactions
+    description: Permission to manage other Players banks
     default: op
