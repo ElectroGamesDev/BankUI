@@ -15,7 +15,6 @@ use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerJoinEvent;
 use pocketmine\utils\Config;
 
-
 class BankUI extends PluginBase implements Listener{
 
     private static $instance;
