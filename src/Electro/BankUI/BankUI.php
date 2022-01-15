@@ -420,10 +420,10 @@ class BankUI extends PluginBase implements Listener{
                 return true;
             }
             $player->sendMessage("§aYou have transferred $" . $data[2] . " into " . $playerName . "'s bank account");
-            if (!$this->$server->getPlayer($username)) {
+            if (!$this->getPlayer()) {
                 return true;
             }
-            $otherPlayer = $this->$server->getPlayer($username);
+            $otherPlayer = $this->getPlayer();
             $otherPlayer->sendMessage("§a" . $player->getName() . " has transferred $" . $data[2] . " into your bank account");
             $this->addTransaction($player->getName(), "§aTransferred $" . $data[2] . " into " . $playerName . "'s bank account");
             $this->takeMoney($player->getName(), $data[2]);
