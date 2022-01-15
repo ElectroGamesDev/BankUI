@@ -92,9 +92,9 @@ class BankUI extends PluginBase implements Listener{
                 if($sender instanceof Player){
                     if (isset($args[0]) && $sender->hasPermission("bankui.admin")
                         if (isset($args[0]) && $sender->isOp()){
-                         if (!file_exists($this->getDataFolder() . "Players/" . $args[0] . ".yml")){
-                             $sender->sendMessage("§c§lError: §r§aThis player does not have a bank account");
-                             return true;
+                            if (!file_exists($this->getDataFolder() . "Players/" . $args[0] . ".yml")){
+                                $sender->sendMessage("§c§lError: §r§aThis player does not have a bank account");
+                                return true;
                         }
                         $this->adminForm($sender, $args[0]);
                         return true;
