@@ -16,7 +16,7 @@ class InterestTask extends Task{
         $this->plugin = $plugin;
     }
 
-    public function onRun($tick)
+    public function onRun($tick) : void
     {
         $this->plugin->dailyInterest();
     }
