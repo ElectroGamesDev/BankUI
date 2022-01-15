@@ -10,14 +10,14 @@ use pocketmine\player\Player;
 use pocketmine\Server;
 use pocketmine\utils\Config;
 
-class InterestTask extends Task{
+class InterestTask extends Server {
 
     public function __construct(BankUI $plugin)
     {
         $this->plugin = $plugin;
     }
 
-    public function onRun($tick) : void
+    public function getTick() : void
     {
         $this->plugin->dailyInterest();
     }
