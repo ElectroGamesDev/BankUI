@@ -18,8 +18,6 @@ class InterestTask extends Task{
 
     public function onRun($tick)
     {
-
         $this->plugin->dailyInterest();
-
     }
 }
