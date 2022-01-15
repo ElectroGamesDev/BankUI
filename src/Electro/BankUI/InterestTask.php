@@ -20,6 +20,6 @@ class InterestTask extends Server {
     public function getTick() : int
     {
         $this->plugin->dailyInterest();
-        return true;
+        return int;
     }
 }
