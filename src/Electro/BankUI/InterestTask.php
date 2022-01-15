@@ -6,7 +6,7 @@ use Cassandra\Time;
 use Electro\BankUI\BankUI;
 
 use pocketmine\scheduler\Task;
-use pocketmine\Player;
+use pocketmine\player\Player;
 use pocketmine\Server;
 use pocketmine\utils\Config;
 
