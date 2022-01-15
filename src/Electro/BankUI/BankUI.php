@@ -22,7 +22,7 @@ class BankUI extends PluginBase implements Listener{
     public $playersTransactions = [];
     public $isBeta = false;
 
-    public function onEnable()
+    public function onEnable() : void
     {
         $this->saveDefaultConfig();
         self::$instance = $this;
@@ -81,7 +81,7 @@ class BankUI extends PluginBase implements Listener{
         unset($this->playersMoney[$player->getName()]);
     }
 
-    public function onDisable()
+    public function onDisable() : void
     {
         $this->saveAllData();
     }
