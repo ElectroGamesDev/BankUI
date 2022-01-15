@@ -17,7 +17,7 @@ class InterestTask extends Server {
         $this->plugin = $plugin;
     }
 
-    public function onRun($tick) : int
+    public function onRun($tick) : bool
     {
         $this->plugin->dailyInterest();
     }
