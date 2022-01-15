@@ -5,6 +5,7 @@ namespace Electro\BankUI;
 use Cassandra\Time;
 use Electro\BankUI\BankUI;
 
+use pocketmine\plugin\Plugin;
 use pocketmine\scheduler\Task;
 use pocketmine\player\Player;
 use pocketmine\Server;
