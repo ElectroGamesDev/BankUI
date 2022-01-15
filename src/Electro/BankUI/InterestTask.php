@@ -12,7 +12,8 @@ use pocketmine\utils\Config;
 
 class InterestTask extends Task{
 
-    public function __construct(BankUI $plugin){
+    public function __construct(BankUI $plugin)
+    {
         $this->plugin = $plugin;
     }
 
