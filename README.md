@@ -22,6 +22,7 @@
 ![admn](https://user-images.githubusercontent.com/34932094/141248349-65d9629c-2e30-42d3-aa4a-d05909c5908e.PNG)
 # Permissions
 - bankui.admin
+- bankui.cmd
 # Developer API
 - You can give/take/set/get players money/transactions using functions.
 
@@ -38,16 +39,13 @@
 # Config
 ```
 # DO NOT TOUCH
-config-ver: 1
+config-ver: 2
 
 # If true, players will get daily interest for the money in their bank
 enable-interest: = true
 
 # Interst Rates is in percentage so if interst-rates = 50, it means 50% Interest Rates, if it is set at 1, it means 1% interest rates. (It is recommended to keep this low)
 interest-rates: 1
-
-# Timezones can be found at https://www.php.net/manual/en/timezones.php if you don't know what your doing, keep this at "America/Chicago" (OR IT WILL BREAK THE PLUGIN). Players will recieve their daily interest at 12pm in this timezone.
-timezone: America/Chicago
 ```
 # Credits
 - Icon from www.flaticon.com
