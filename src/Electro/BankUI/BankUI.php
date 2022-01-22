@@ -2,18 +2,19 @@
 
 namespace Electro\BankUI;
 
-use Electro\BankUI\InterestTask;
 use onebone\economyapi\EconomyAPI;
 use jojoe77777\FormAPI\SimpleForm;
 use jojoe77777\FormAPI\CustomForm;
 use pocketmine\event\player\PlayerQuitEvent;
-use pocketmine\Player;
+use pocketmine\player\Player;
 use pocketmine\plugin\PluginBase;
 use pocketmine\command\Command;
 use pocketmine\command\CommandSender;
 use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerJoinEvent;
 use pocketmine\utils\Config;
+use pocketmine\scheduler\ClosureTask;
+
 
 class BankUI extends PluginBase implements Listener{
 
@@ -22,7 +23,7 @@ class BankUI extends PluginBase implements Listener{
     public $playersTransactions = [];
     public $isBeta = false;
 
-    public function onEnable()
+    public function onEnable() : void
     {
         $this->saveDefaultConfig();
         self::$instance = $this;
@@ -30,16 +31,24 @@ class BankUI extends PluginBase implements Listener{
         if (!file_exists($this->getDataFolder() . "Players")){
             mkdir($this->getDataFolder() . "Players");
         }
-        date_default_timezone_set($this->getConfig()->get("timezone"));
         if ($this->getConfig()->get("enable-interest") == true) {
-            $this->getScheduler()->scheduleRepeatingTask(new InterestTask($this), 1100);
+            $this->interestTask();
         }
-        if ($this->getConfig()->get("config-ver") != 1) {
+        if ($this->getConfig()->get("config-ver") != 2) {
             $this->getLogger()->info("§l§cWARNING: §r§cBankUI's config is NOT up to date. Please delete the config.yml and restart the server or the plugin may not work properly.");
         }
         if ($this->isBeta) {
             $this->getLogger()->warning("You are using a Beta/Untested version of BankUI. There may be some bugs. Use this plugin with caution!");
         }
+    }
+
+    public function interestTask()
+    {
+        $this->getScheduler()->scheduleRepeatingTask(new ClosureTask(
+            function() {
+                $this->dailyInterest();
+            }
+        ), 1100);
     }
 
     public function dailyInterest(){
@@ -81,7 +90,7 @@ class BankUI extends PluginBase implements Listener{
         unset($this->playersMoney[$player->getName()]);
     }
 
-    public function onDisable()
+    public function onDisable() : void
     {
         $this->saveAllData();
     }
@@ -90,7 +99,7 @@ class BankUI extends PluginBase implements Listener{
         switch($command->getName()){
             case "bank":
                 if($sender instanceof Player){
-                    if (isset($args[0]) && $sender->hasPermission("bankui.admin") || isset($args[0]) && $sender->isOp()){
+                    if (isset($args[0]) && $sender->hasPermission("bankui.admin") || isset($args[0]) && $sender->hasPermission("DefaultPermissions::ROOT_OPERATOR")){
                         if (!file_exists($this->getDataFolder() . "Players/" . $args[0] . ".yml")){
                             $sender->sendMessage("§c§lError: §r§aThis player does not have a bank account");
                             return true;
@@ -420,10 +429,10 @@ class BankUI extends PluginBase implements Listener{
                 return true;
             }
             $player->sendMessage("§aYou have transferred $" . $data[2] . " into " . $playerName . "'s bank account");
-            if (!$this->getServer()->getPlayer($playerName)) {
+            if (!$this->getServer()->getPlayerExact($playerName)) {
                 return true;
             }
-            $otherPlayer = $this->getServer()->getPlayer($playerName);
+            $otherPlayer = $this->getServer()->getPlayerExact($playerName);
             $otherPlayer->sendMessage("§a" . $player->getName() . " has transferred $" . $data[2] . " into your bank account");
             $this->addTransaction($player->getName(), "§aTransferred $" . $data[2] . " into " . $playerName . "'s bank account");
             $this->takeMoney($player->getName(), $data[2]);
@@ -611,5 +620,4 @@ class BankUI extends PluginBase implements Listener{
     public static function getInstance(): BankUI {
         return self::$instance;
     }
-
 }
