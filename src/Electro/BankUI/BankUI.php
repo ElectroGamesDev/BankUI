@@ -3,8 +3,8 @@
 namespace Electro\BankUI;
 
 use onebone\economyapi\EconomyAPI;
-use jojoe77777\FormAPI\SimpleForm;
-use jojoe77777\FormAPI\CustomForm;
+use Vecnavium\FormsUI\SimpleForm;
+use Vecnavium\FormsUI\CustomForm;
 use pocketmine\event\player\PlayerQuitEvent;
 use pocketmine\player\Player;
 use pocketmine\plugin\PluginBase;
