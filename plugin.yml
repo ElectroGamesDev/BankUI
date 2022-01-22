@@ -1,15 +1,20 @@
 main : Electro\BankUI\BankUI
 name: BankUI
 version: 2.0.0
-api: 3.0.0
+api: 4.0.0
 Author: Electro
 depend: ["EconomyAPI"]
 
 commands:
   bank:
     description: Opens The BankUI
+    usage: /bank
+    permission: bankui.cmd
     
 permissions:
   bankui.admin:
-    description: Permission to manage other Players banks
+    description: Permission to view other players bank
     default: op
+  bankui.cmd:
+    description: Permission to open bank ui
+    default: true
