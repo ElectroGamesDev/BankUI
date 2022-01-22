@@ -6,6 +6,3 @@ enable-interest: true
 
 # Interst Rates is in percentage so if interst-rates = 50, it means 50% Interest Rates, if it is set at 1, it means 1% interest rates. (It is recommended to keep this low)
 interest-rates: 1
-
-# Timezones can be found at https://www.php.net/manual/en/timezones.php if you don't know what your doing, keep this at "America/Chicago" (OR IT WILL BREAK THE PLUGIN). Players will recieve their daily interest at 12pm in this timezone.
-timezone: America/Chicago
