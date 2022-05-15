@@ -2,7 +2,10 @@
 
 namespace Electro\BankUI;
 
-use onebone\economyapi\EconomyAPI;
+use cooldogedev\BedrockEconomy\libs\cooldogedev\libSQL\context\ClosureContext;
+use pocketmine\promise\PromiseResolver;
+use poggit\libasynql\libasynql;
+use poggit\libasynql\SqlError;
 use Vecnavium\FormsUI\SimpleForm;
 use Vecnavium\FormsUI\CustomForm;
 use pocketmine\event\player\PlayerQuitEvent;
@@ -15,31 +18,137 @@ use pocketmine\event\player\PlayerJoinEvent;
 use pocketmine\utils\Config;
 use pocketmine\scheduler\ClosureTask;
 
-
 class BankUI extends PluginBase implements Listener{
 
     private static $instance;
-    public $playersMoney = [];
-    public $playersTransactions = [];
-    public $isBeta = false;
+    public array $playersMoney = [];
+    public array $playersTransactions = [];
+    public bool $isBeta = false;
+
+    public bool $scoreHud = false;
+
+    public $database;
+    public $backupDatabase;
+    public $restoreDatabase;
+
+    // 1 = BedrockEconomy, 2 = Capital
+    public $economyType;
+    public $economyPlugin;
+
+    public int $configVersion = 2;
+
+    public array $messages = [];
+
+    public array $migrationWarning = [];
+
+    public bool $backupsEnabled;
+    public array $loadBackupWarning = [];
+    public array $restoreBackupWarning = [];
 
     public function onEnable() : void
     {
-        $this->saveDefaultConfig();
         self::$instance = $this;
         $this->getServer()->getPluginManager()->registerEvents($this, $this);
-        if (!file_exists($this->getDataFolder() . "Players")){
-            mkdir($this->getDataFolder() . "Players");
+
+        $this->saveDefaultConfig();
+        $this->saveResource("Messages.yml");
+
+        if ($this->getConfig()->get("config-ver") !== $this->configVersion)
+        {
+            $this->updateConfig();
+
+            $this->getLogger()->critical("BankUI's config has been updated automatically but your changes has been reset so you will need to reconfigure it!");
         }
+
+        $this->database = libasynql::create($this, $this->getConfig()->get("database"), [
+            "sqlite" => "sqlite.sql",
+            "mysql" => "mysql.sql"
+        ]);
+        $this->database->executeGeneric("init.table.creation");
+
+        if ($this->getConfig()->get("enable-backups"))
+        {
+            try
+            {
+                $this->backupDatabase = libasynql::create($this, $this->getConfig()->get("backup-database"), [
+                    "sqlite" => "sqlite.sql",
+                    "mysql" => "mysql.sql"
+                ]);
+                $this->backupsEnabled = true;
+                if ($this->getConfig()->get("enable-automatic-backups"))
+                {
+                    $this->startAutomaticBackups();
+                }
+            }
+            catch (SqlError $e)
+            {
+                $this->getLogger()->critical("An error occurred while connecting to the backup database. Backups have been disabled, please fix this to enable backups.");
+                $this->backupsEnabled = false;
+            }
+        }
+
+        $this->economyPlugin = $this->getServer()->getPluginManager()->getPlugin("BedrockEconomy");
+
+        if ($this->getServer()->getPluginManager()->getPlugin("ScoreHud")) $this->scoreHud = true;
+
+        // Todo: Add Capital Support
+//        if ($this->getConfig()->get('economy-plugin') == 2) $this->economyType = 2;
+//        else $this->economyType = 1;
+//
+//        if ($this->economyType == 2)
+//        {
+//            if (!$this->getServer()->getPluginManager()->getPlugin("Capital"))
+//            {
+//                if ($this->getServer()->getPluginManager()->getPlugin("BedrockEconomy"))
+//                {
+//                    $this->getLogger()->warning("We have detected you are using BedrockEconomy, we have changed your economy plugin to BedrockEconomy but you will need to change this in config.yml to make this option permanent.");
+//                    $this->economyType = 1;
+//                    return;
+//                }
+//                $this->getLogger()->critical("You do not have BedrockEconomy or Capital installed, BankUI has been disabled. Please add one of these two plugins then restart your server.");
+//                $this->getServer()->getPluginManager()->disablePlugin($this);
+//                return;
+//            }
+//            $this->economyPlugin = $this->getServer()->getPluginManager()->getPlugin("Capital");
+//        }
+//        else
+//        {
+//            if (!$this->getServer()->getPluginManager()->getPlugin("BedrockEconomy"))
+//            {
+//                if ($this->getServer()->getPluginManager()->getPlugin("Capital"))
+//                {
+//                    $this->getLogger()->warning("We have detected you are using Capital, we have changed your default economy plugin to Capital but you will need to change this in config.yml to make this option permanent.");
+//                    $this->economyType = 2;
+//                    return;
+//                }
+//                $this->getLogger()->critical("You do not have BedrockEconomy or Capital installed, BankUI has been disabled. Please add one of these two plugins then restart your server.");
+//                $this->getServer()->getPluginManager()->disablePlugin($this);
+//                return;
+//            }
+//            $this->economyPlugin = $this->getServer()->getPluginManager()->getPlugin("BedrockEconomy");
+//        }
+
+        if (file_exists($this->getDataFolder() . "Players")) $this->migrateDatabase("YAML", "SQL");
+
         if ($this->getConfig()->get("enable-interest") == true) {
             $this->interestTask();
-        }
-        if ($this->getConfig()->get("config-ver") != 2) {
-            $this->getLogger()->info("§l§cWARNING: §r§cBankUI's config is NOT up to date. Please delete the config.yml and restart the server or the plugin may not work properly.");
         }
         if ($this->isBeta) {
             $this->getLogger()->warning("You are using a Beta/Untested version of BankUI. There may be some bugs. Use this plugin with caution!");
         }
+
+        $this->loadMessages();
+    }
+
+    public function startAutomaticBackups()
+    {
+        $backupTime = $this->getConfig()->get("automatic-backups-time");
+        $this->backupData();
+        $this->getScheduler()->scheduleRepeatingTask(new ClosureTask(
+            function() {
+                $this->backupData();
+            }
+        ), $backupTime * 1200);
     }
 
     public function interestTask()
@@ -52,63 +161,174 @@ class BankUI extends PluginBase implements Listener{
     }
 
     public function dailyInterest(){
-        if (date("H:i") === "12:00"){
-            foreach (glob($this->getDataFolder() . "Players/*.yml") as $players) {
-                $playerBankMoney = new Config($players);
-                $interest = ($this->getConfig()->get("interest-rates") / 100 * $playerBankMoney->get("Money"));
-                $playerBankMoney->set("Money", round($playerBankMoney->get("Money") + $interest));
-                $playerBankMoney->save();
-                if ($playerBankMoney->get('Transactions') === 0){
-                    $playerBankMoney->set('Transactions', date("§b[d/m/y]") . "§e - §aInterest $" . round($interest) . "\n");
-                }
-                else {
-                    $playerBankMoney->set('Transactions', $playerBankMoney->get('Transactions') . date("§b[d/m/y]") . "§e - §a$" . round($interest) . " from interest" . "\n");
-                }
-                $playerBankMoney->save();
-            }
-            foreach ($this->getServer()->getOnlinePlayers() as $onlinePlayers){
-                $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $onlinePlayers->getName() . ".yml", Config::YAML);
-                $onlinePlayers->sendMessage("§aYou have earned $" . round(($this->getConfig()->get("interest-rates") / 100) * $playerBankMoney->get("Money")) . " from bank interest");
+        if (date("H:i") !== "12:00") return;
+        foreach ($this->playersMoney as $players => $money) {
+            $interest = ($this->getConfig()->get("interest-rates") / 100 * $this->playersMoney[$players]);
+            $this->addMoney($players, $interest);
+            $this->addTransaction($players, str_replace("{interest}", round($interest), $this->messages["InterestTransaction"]) . "\n");
+            if ($this->getServer()->getPlayerExact($players) && $this->getServer()->getPlayerExact($players) instanceof Player)
+            {
+                $this->getServer()->getPlayerExact($players)->sendMessage(str_replace("{interest}", round($interest), $this->messages["Interest"]));
             }
         }
     }
 
+    public function loadMessages()
+    {
+        $msg = new Config($this->getDataFolder() . "messages.yml");
+        $this->messages = ["Interest" => $msg->get("Interest"), "Deposit" => $msg->get("Deposit"), "DepositNoMoney" =>$msg->get("DepositNoMoney"), "DepositNotEnoughMoney" => $msg->get("DepositNotEnoughMoney"),
+            "Withdraw" => $msg->get("Withdraw"), "WithdrawNoMoney", $msg->get("WithdrawNoMoney"), "WithdrawNotEnoughMoney" => $msg->get("WithdrawNotEnoughMoney"), "SentTransfer" => $msg->get("SentTransfer"),
+            "ReceivedTransfer" => $msg->get("ReceivedTransfer"), "DepositTransaction" => $msg->get("DepositTransaction"), "WithdrawTransaction" => $msg->get("WithdrawTransaction"), "SentTransferTransaction" =>
+            $msg->get("SentTransferTransaction"), "ReceivedTransferTransaction" => $msg->get("ReceivedTransferTransaction"), "AdminSetTransaction" => $msg->get("AdminSetTransaction"), "AdminTakeTransaction" =>
+            $msg->get("AdminTakeTransaction"), "AdminAddTransaction" => $msg->get("AdminAddTransaction"), "NoNegativeNumbers" => $msg->get("NoNegativeNumbers"), "InvalidAmount" => $msg->get("InvalidAmount"),
+            "TransferNoMoney" => $msg->get("TransferNoMoney"), "TransferNotEnoughMoney" => $msg->get("TransferNotEnoughMoney"), "NoTransactions" => $msg->get("NoTransactions"), "InterestTransaction" =>
+            $msg->get("InterestTransaction")];
+    }
+
+
+    public function updateConfig()
+    {
+        copy($this->getDataFolder() . "config.yml", $this->getDataFolder() . "config_old.yml");
+        unlink($this->getDataFolder() . "config.yml");
+        $this->saveDefaultConfig();
+        $this->reloadConfig();
+    }
+
     public function onJoin(PlayerJoinEvent $event){
+
         $player = $event->getPlayer();
-        if (!file_exists($this->getDataFolder() . "Players/" . $player->getName() . ".yml")) {
-            new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAML, array(
-                "Money" => 0,
-                "Transactions" => 0,
-            ));
-        }
-        $this->loadData($player);
+        $this->accountExists($player->getName())->onCompletion(function(bool $exists) use ($player) : void{
+            if (!$exists)
+            {
+                $this->createAccount($player->getName());
+                $this->playersMoney[$player->getName()] = 0;
+                $this->playersTransactions[$player->getName()] = "";
+            }
+            else $this->loadData($player);
+        }, static fn() => null);
+    }
+
+    public function createAccount(string $player, $money = 0, $transactions = "")
+    {
+        $this->database->executeInsert("init.table.createaccount", ["playername" => $player, "money" => $money, "transactions" => $transactions]);
+    }
+
+    public function accountExists(string $player) : \pocketmine\promise\Promise
+    {
+
+        $promise = new PromiseResolver();
+        $this->database->executeSelect("init.table.playerexists", ["playername" => $player], function(array $rows) use ($promise) {
+            if (empty($rows))
+            {
+                $promise->resolve(false);
+            }
+            else
+            {
+                $promise->resolve(true);
+            }
+        });
+        return $promise->getPromise();
     }
 
     public function onQuit(PlayerQuitEvent $event){
         $player = $event->getPlayer();
-        $this->saveData($player);
+        $this->saveData($player, true);
         unset($this->playersMoney[$player->getName()]);
     }
 
     public function onDisable() : void
     {
         $this->saveAllData();
+        if(isset($this->database)) $this->database->close();
     }
 
     public function onCommand(CommandSender $sender, Command $command, string $label, array $args): bool{
-        switch($command->getName()){
+        switch($command->getName()) {
             case "bank":
-                if($sender instanceof Player){
-                    if (isset($args[0]) && $sender->hasPermission("bankui.admin") || isset($args[0]) && $sender->hasPermission("DefaultPermissions::ROOT_OPERATOR")){
-                        if (!file_exists($this->getDataFolder() . "Players/" . $args[0] . ".yml")){
-                            $sender->sendMessage("§c§lError: §r§aThis player does not have a bank account");
-                            return true;
-                        }
-                        $this->adminForm($sender, $args[0]);
+                if (!$sender instanceof Player) {
+                    $sender->sendMessage("§cYou must be in-game to run this command!");
+                    return true;
+                }
+                if (!isset($args[0]))
+                {
+                    $this->bankForm($sender);
+                    return true;
+                }
+                if (!$sender->hasPermission("bankui.admin") && !$sender->hasPermission("DefaultPermissions::ROOT_OPERATOR"))
+                {
+                    $sender->sendMessage('§cYou do not have permissions to manage other players banks.');
+                    return true;
+                }
+                if ($args[0] == "migrate") {
+                    if (!$sender->hasPermission("bankui.admin.migrate") && !$sender->hasPermission("DefaultPermissions::ROOT_OPERATOR"))
+                    {
+                        $sender->sendMessage('§cYou must have the "bankui.admin.migrate" permission to migrate your databases.');
                         return true;
                     }
-                    $this->bankForm($sender);
+                    $currentDBType = $this->getConfig()->getNested("database.type");
+
+                    if ($currentDBType == "mysql") {
+                        $migrateFrom = "MySQL";
+                        $migrateTo = "SQLite";
+                    } else {
+                        $migrateFrom = "SQLite";
+                        $migrateTo = "MySQL";
+                    }
+                    if (in_array($sender->getName(), $this->migrationWarning)) {
+                        $sender->sendMessage("§l§aGetting Migration Ready: §r§eWe are getting your databases ready to begin migration!");
+                        unset($this->migrationWarning[array_search($sender->getName(), $this->migrationWarning)]);
+                        $this->saveAllData();
+                        $this->migrateDatabase("sql", "sql", $sender);
+                        return true;
+                    }
+                    $sender->sendMessage("§c§lWARNING: §r§aYou are about to migrate your " . $migrateFrom . " database to " . $migrateTo . ". Doing so you will LOSE ALL data to your " . $migrateTo . " database and all of your data from your " . $migrateFrom . " database will be sent to your " . $migrateTo . " database. If you don't know what this does or you have no idea what you are doing, DO NOT USE THIS OR YOU MAY LOSE YOUR DATA! Note: We will not update your default database so after migrating your data, you will need to change your database type to " . $migrateTo . " in config.yml. Type this command again if you are sure you would like to migrate your database.");
+                    $this->migrationWarning[] = $sender->getName();
+                    return true;
                 }
+                if ($args[0] == "backup")
+                {
+                    if (!$sender->hasPermission("bankui.admin.backup") && !$sender->hasPermission("DefaultPermissions::ROOT_OPERATOR"))
+                    {
+                        $sender->sendMessage('§cYou must have the "bankui.admin.backup" permission to save, load, and restore backups.');
+                        return true;
+                    }
+                    if (!isset($args[1]) || $args[1] !== "save" && $args[1] !== "load" && $args[1] !== "restore")
+                    {
+                        $sender->sendMessage("§cUsage: §a/bank backup <save | load | restore>");
+                        return true;
+                    }
+                    if ($args[1] == "save")
+                    {
+                        $this->backupData($sender->getName());
+                        $sender->sendMessage('§aYou have backed up the bank!');
+                        return true;
+                    }
+                    else if ($args[1] == "restore")
+                    {
+                        if (in_array($sender->getName(), $this->restoreBackupWarning)) {
+                            unset($this->restoreBackupWarning[array_search($sender->getName(), $this->restoreBackupWarning)]);
+                            $this->restoreBackup($sender->getName());
+                            $sender->sendMessage("§aYou have restored the server from the most recent backup! If this was done by mistake, immediately type §c/bank backup load§a before a new backup saves!");
+                            return true;
+                        }
+                        $sender->sendMessage("§c§lWARNING: §r§aYou are about to restore your server from the most recent backup. Doing so you will lose all of your data made since the last backup. If you do this by mistake, immediately type §c/bank backup load§a before a new backup saves! If you are you are sure you would like to restore from the most recent backup, type this command again.");
+                        $this->restoreBackupWarning[] = $sender->getName();
+                        return true;
+                    }
+                    if (in_array($sender->getName(), $this->loadBackupWarning)) {
+                        unset($this->loadBackupWarning[array_search($sender->getName(), $this->loadBackupWarning)]);
+                        $this->loadBackup($sender->getName());
+                        $sender->sendMessage("§aYou have loaded the server's most recent backup! If this was done by mistake, immediately type §c/bank backup restore§a!");
+                        return true;
+                    }
+                    $sender->sendMessage("§c§lWARNING: §r§aYou are about to load your server's most recent backup. Doing so you will lose all of your data made since the last backup. If you do this by mistake, you can use §c/bank backup restore §abut this will only restore that last time you loaded a backup so be careful! If you are you are sure you would like to load the most recent backup, type this command again.");
+                    $this->loadBackupWarning[] = $sender->getName();
+                    return true;
+                }
+                $this->accountExists($args[0])->onCompletion(function (bool $exists) use ($sender, $args): void {
+                    if ($exists) $this->adminForm($sender, $args[0]);
+                    else $sender->sendMessage("§c§lError: §r§aThis player does not have a bank account");
+                }, static fn() => null);
         }
         return true;
     }
@@ -136,13 +356,15 @@ class BankUI extends PluginBase implements Listener{
         });
 
         $form->setTitle("§lBank Menu");
-        $form->setContent("Balance: $" . $this->getMoney($player->getName()));
+        $this->getMoney($player->getName())->onCompletion(function(float $money) use($form): void{
+            $form->setContent("Balance: $" . $money);
+        }, static fn() => null);
         $form->addButton("§lWithdraw Money\n§r§dClick to withdraw...",0,"textures/ui/icon_book_writable");
         $form->addButton("§lDeposit Money\n§r§dClick to deposit...",0,"textures/items/map_filled");
         $form->addButton("§lTransfer Money\n§r§dClick to transfer...",0,"textures/ui/FriendsIcon");
         $form->addButton("§lTransactions\n§r§dClick to open...",0,"textures/ui/lock_color");
         $form->addButton("§l§cEXIT\n§r§dClick to close...",0,"textures/ui/cancel");
-        $form->sendtoPlayer($player);
+        $player->sendForm($form);
         return $form;
     }
 
@@ -169,13 +391,15 @@ class BankUI extends PluginBase implements Listener{
         });
 
         $form->setTitle("§l" . $target . "'s Bank");
-        $form->setContent("Balance: $" . $this->getMoney($target));
+        $this->getMoney($target)->onCompletion(function(float $money) use($form): void{
+            $form->setContent("Balance: $" . $money);
+        }, static fn() => null);
         $form->addButton("§lAdd Money\n§r§dClick to add...",0,"textures/ui/icon_book_writable");
         $form->addButton("§lTake Money\n§r§dClick to take...",0,"textures/items/map_filled");
         $form->addButton("§lSet Money\n§r§dClick to set...",0,"textures/ui/FriendsIcon");
         $form->addButton("§lTransactions\n§r§dClick to open...",0,"textures/ui/lock_color");
         $form->addButton("§l§cEXIT\n§r§dClick to close...",0,"textures/ui/cancel");
-        $form->sendtoPlayer($player);
+        $player->sendForm($form);
         return $form;
     }
 
@@ -187,7 +411,7 @@ class BankUI extends PluginBase implements Listener{
                 return true;
             }
 
-            if (!is_numeric($data[1])){
+            if (!isset($data[1]) || !is_numeric($data[1])){
                 $player->sendMessage("§aYou did not enter a valid amount");
                 return true;
             }
@@ -199,22 +423,24 @@ class BankUI extends PluginBase implements Listener{
             if ($action == 0){
                 $this->addMoney($target, $data[1]);
                 $player->sendMessage("§aYou have added $" . $data[1] . " into " . $target . "'s bank");
-                $this->addTransaction($target, "§aAdmin added $" . $data[1]);
+                $this->addTransaction($target, str_replace("{amount}", $data[1], $this->messages["AdminAddTransaction"]));
             }
             if ($action == 1){
                 $this->takeMoney($target, $data[1]);
                 $player->sendMessage("§aYou have took $" . $data[1] . " into " . $target . "'s bank");
-                $this->addTransaction($target, "§aAdmin took $" . $data[1]);
+                $this->addTransaction($target, str_replace("{amount}", $data[1], $this->messages["AdminTakeTransaction"]));
             }
             if ($action == 2){
                 $this->setMoney($target, $data[1]);
                 $player->sendMessage("§aYou have set " . $target . "'s bank balance to $" . $data[1]);
-                $this->addTransaction($target, "§aAdmin set balance to $" . $data[1]);
+                $this->addTransaction($target, str_replace("{amount}", $data[1], $this->messages["AdminSetTransaction"]));
             }
         });
 
         $form->setTitle("§l" . $target . "'s Bank");;
-        $form->addLabel("Balance: $" . $this->getMoney($target));
+        $this->getMoney($target)->onCompletion(function(float $money) use($form): void{
+            $form->addLabel("Balance: $" . $money);
+        }, static fn() => null);
         if ($action == 0){
             $form->addInput("§rEnter amount to give", "100000");
         }
@@ -224,7 +450,7 @@ class BankUI extends PluginBase implements Listener{
         if ($action == 2){
             $form->addInput("§rEnter amount to set", "100000");
         }
-        $form->sendtoPlayer($player);
+        $player->sendForm($form);
         return $form;
     }
 
@@ -238,24 +464,28 @@ class BankUI extends PluginBase implements Listener{
             }
             switch ($result) {
                 case 0:
-                    if ($this->getMoney($player->getName()) == 0){
-                        $player->sendMessage("§aYou have no money in the bank to withdraw");
-                        return true;
-                    }
-                    EconomyAPI::getInstance()->addMoney($player->getName(), $this->getMoney($player->getName()));
-                    $player->sendMessage("§aYou have withdrew $" . $this->getMoney($player->getName()) . " from the bank");
-                    $this->addTransaction($player->getName(), $this->getMoney($player->getName()));
-                    $this->takeMoney($player->getName(), "§aWithdrew $" . $this->getMoney($player->getName()));
+                    $this->getMoney($player->getName())->onCompletion(function(float $money) use ($player): void{
+                        if ($money == 0){
+                            $player->sendMessage($this->messages["WithdrawNoMoney"]);
+                            return;
+                        }
+                        $this->takeMoney($player->getName(), $money);
+                        $this->addEconomyMoney($player->getName(), $money);
+                        $player->sendMessage(str_replace("{amount}", $money, $this->messages["Withdraw"]));
+                        $this->addTransaction($player->getName(), str_replace("{amount}", $money, $this->messages["Withdraw"]));
+                    }, static fn() => null);
                     break;
                 case 1:
-                    if ($this->getMoney($player->getName()) == 0){
-                        $player->sendMessage("§aYou have no money in the bank to withdraw");
-                        return true;
-                    }
-                    EconomyAPI::getInstance()->addMoney($player->getName(), $this->getMoney($player->getName()) / 2);
-                    $player->sendMessage("§aYou have withdrew $" . $this->getMoney($player->getName()) /2 . " from the bank");
-                    $this->addTransaction($player->getName(), "§aWithdrew $" . $this->getMoney($player->getName()) / 2);
-                    $this->takeMoney($player->getName(), $this->getMoney($player->getName()) / 2);
+                    $this->getMoney($player->getName())->onCompletion(function(float $money) use ($player): void{
+                        if ($money == 0){
+                            $player->sendMessage($this->messages["WithdrawNoMoney"]);
+                            return;
+                        }
+                        $this->addEconomyMoney($player->getName(), $money / 2);
+                        $player->sendMessage(str_replace("{amount}", $money / 2, $this->messages["Withdraw"]));
+                        $this->addTransaction($player->getName(), str_replace("{amount}", $money / 2, $this->messages["WithdrawTransaction"]));
+                        $this->takeMoney($player->getName(), $money / 2);
+                    }, static fn() => null);
                      break;
                 case 2:
                     $this->withdrawCustomForm($player);
@@ -263,12 +493,14 @@ class BankUI extends PluginBase implements Listener{
         });
 
         $form->setTitle("§lWithdraw Menu");
-        $form->setContent("Balance: $" . $this->getMoney($player->getName()));
+        $this->getMoney($player->getName())->onCompletion(function(float $money) use($form): void{
+            $form->setContent("Balance: $" . $money);
+        }, static fn() => null);
         $form->addButton("§lWithdraw All\n§r§dClick to withdraw...",0,"textures/ui/icon_book_writable");
         $form->addButton("§lWithdraw Half\n§r§dClick to withdraw...",0,"textures/ui/icon_book_writable");
         $form->addButton("§lWithdraw Custom\n§r§dClick to withdraw...",0,"textures/ui/icon_book_writable");
         $form->addButton("§l§cEXIT\n§r§dClick to close...",0,"textures/ui/cancel");
-        $form->sendtoPlayer($player);
+        $player->sendForm($form);
         return $form;
     }
 
@@ -280,32 +512,36 @@ class BankUI extends PluginBase implements Listener{
                 return true;
             }
 
-            if ($this->getMoney($player->getName()) == 0){
-                $player->sendMessage("§aYou have no money in the bank to withdraw");
-                return true;
-            }
-            if ($this->getMoney($player->getName()) < $data[1]){
-                $player->sendMessage("§aYou do not have enough money in your bank to withdraw $" . $data[1]);
-                return true;
-            }
-            if (!is_numeric($data[1])){
-                $player->sendMessage("§aYou did not enter a valid amount");
-                return true;
-            }
-            if ($data[1] <= 0){
-                $player->sendMessage("§aYou must enter an amount greater than 0");
-                return true;
-            }
-            EconomyAPI::getInstance()->addMoney($player->getName(), $data[1]);
-            $player->sendMessage("§aYou have withdrew $" . $data[1] . " from the bank");
-            $this->addTransaction($player->getName(), "§aWithdrew $" . $data[1]);
-            $this->takeMoney($player->getName(), $data[1]);
+            $this->getMoney($player->getName())->onCompletion(function(float $money) use ($player, $data): void{
+                if ($money == 0){
+                    $player->sendMessage(str_replace("{amount}", $data[1], $this->messages["WithdrawNoMoney"]));
+                    return;
+                }
+                if ($money < $data[1]){
+                    $player->sendMessage(str_replace("{amount}", $data[1], $this->messages["WithdrawNotEnoughMoney"]));
+                    return;
+                }
+                if (!is_numeric($data[1])){
+                    $this->addTransaction($player->getName(), $this->messages["InvalidAmount"]);
+                    return;
+                }
+                if ($data[1] <= 0){
+                    $player->sendMessage($this->messages["NoNegativeNumbers"]);
+                    return;
+                }
+                $this->takeMoney($player->getName(), $data[1]);
+                $this->addEconomyMoney($player->getName(), $data[1]);
+                $player->sendMessage(str_replace("{amount}", $data[1], $this->messages["Withdraw"]));
+                $this->addTransaction($player->getName(), str_replace("{amount}", $data[1], $this->messages["WithdrawTransaction"]));
+            }, static fn() => null);
         });
 
         $form->setTitle("§lWithdraw Menu");
-        $form->addLabel("Balance: $" . $this->getMoney($player->getName()));
+        $this->getMoney($player->getName())->onCompletion(function(float $money) use($form): void{
+            $form->addLabel("Balance: $" . $money);
+        }, static fn() => null);
         $form->addInput("§rEnter amount to withdraw", "100000");
-        $form->sendtoPlayer($player);
+        $player->sendForm($form);
         return $form;
     }
 
@@ -319,26 +555,38 @@ class BankUI extends PluginBase implements Listener{
             }
             switch ($result) {
                 case 0:
-                    $playerMoney = EconomyAPI::getInstance()->myMoney($player);
-                    if ($playerMoney == 0){
-                        $player->sendMessage("§aYou do not have enough money to deposit into the bank");
-                        return true;
-                    }
-                    $this->addTransaction($player->getName(), "§aDeposited $" . $playerMoney);
-                    $this->addMoney($player->getName(), $playerMoney);
-                    $player->sendMessage("§aYou have deposited $" . $playerMoney . " into the bank");
-                    EconomyAPI::getInstance()->reduceMoney($player, $playerMoney);
+                    $this->economyPlugin->getAPI()->getPlayerBalance(
+                        $player->getName(),
+                        ClosureContext::create(
+                            function (?int $balance) use ($player) : void {
+                                if ($balance == 0){
+                                    $player->sendMessage($this->messages["DepositNoMoney"]);
+                                    return;
+                                }
+                                $player->sendMessage(str_replace("{amount}", $balance, $this->messages["Deposit"]));
+                                $this->addTransaction($player->getName(), str_replace("{amount}", $balance, $this->messages["DepositTransaction"]));
+                                $this->addMoney($player->getName(), $balance);
+                                $this->takeEconomyMoney($player->getName(), $balance);
+                            },
+                        )
+                    );
                     break;
                 case 1:
-                    $playerMoney = EconomyAPI::getInstance()->myMoney($player);
-                    if ($playerMoney == 0){
-                        $player->sendMessage("§aYou do not have enough money to deposit into the bank");
-                        return true;
-                    }
-                    $this->addTransaction($player->getName(), "§aDeposited $" . $playerMoney / 2);
-                    $this->addMoney($player->getName(), $playerMoney / 2);
-                    $player->sendMessage("§aYou have deposited $" . $playerMoney / 2 . " into the bank");
-                    EconomyAPI::getInstance()->reduceMoney($player, $playerMoney / 2);
+                    $this->economyPlugin->getAPI()->getPlayerBalance(
+                        $player->getName(),
+                        ClosureContext::create(
+                            function (?int $balance) use ($player) : void {
+                                if ($balance == 0){
+                                    $player->sendMessage($this->messages["DepositNoMoney"]);
+                                    return;
+                                }
+                                $player->sendMessage(str_replace("{amount}", $balance / 2, $this->messages["Deposit"]));
+                                $this->addTransaction($player->getName(), str_replace("{amount}", $balance / 2, $this->messages["DepositTransaction"]));
+                                $this->addMoney($player->getName(), $balance / 2);
+                                $this->takeEconomyMoney($player->getName(), $balance / 2);
+                            },
+                        )
+                    );
                     break;
                 case 2:
                     $this->depositCustomForm($player);
@@ -346,12 +594,14 @@ class BankUI extends PluginBase implements Listener{
         });
 
         $form->setTitle("§lDeposit Menu");
-        $form->setContent("Balance: $" . $this->getMoney($player->getName()));
+        $this->getMoney($player->getName())->onCompletion(function(float $money) use($form): void{
+            $form->setContent("Balance: $" . $money);
+        }, static fn() => null);
         $form->addButton("§lDeposit All\n§r§dClick to deposit...",0,"textures/items/map_filled");
         $form->addButton("§lDeposit Half\n§r§dClick to deposit...",0,"textures/items/map_filled");
         $form->addButton("§lDeposit Custom\n§r§dClick to deposit...",0,"textures/items/map_filled");
         $form->addButton("§l§cEXIT\n§r§dClick to close...",0,"textures/ui/cancel");
-        $form->sendtoPlayer($player);
+        $player->sendForm($form);
         return $form;
     }
 
@@ -362,29 +612,40 @@ class BankUI extends PluginBase implements Listener{
             if ($result === null) {
                 return true;
             }
-            $playerMoney = EconomyAPI::getInstance()->myMoney($player);
-            if ($playerMoney < $data[1]){
-                $player->sendMessage("§aYou do not have enough money to deposit $" . $data[1] . " into the bank");
-                return true;
-            }
-            if (!is_numeric($data[1])){
-                $player->sendMessage("§aYou did not enter a valid amount");
-                return true;
-            }
-            if ($data[1] <= 0){
-                $player->sendMessage("§aYou must enter an amount greater than 0");
-                return true;
-            }
-            $player->sendMessage("§aYou have deposited $" . $data[1] . " into the bank");
-            $this->addTransaction($player->getName(), "§aDeposited $" . $data[1]);
-            $this->addMoney($player->getName(), $data[1]);
-            EconomyAPI::getInstance()->reduceMoney($player, $data[1]);
+
+            $this->economyPlugin->getAPI()->getPlayerBalance(
+                $player->getName(),
+                ClosureContext::create(
+                    function (?int $balance) use ($player, $data) : void {
+                        if ($balance < $data[1]){
+                            $player->sendMessage(str_replace("{amount}", $data[1], $this->messages["DepositNotEnoughMoney"]));
+                            return;
+                        }
+                        if (!is_numeric($data[1])){
+                            $player->sendMessage($this->messages["InvalidAmount"]);
+                            return;
+                        }
+                        if ($data[1] <= 0){
+                            $player->sendMessage("§cYou must enter an amount greater than 0");
+                            $player->sendMessage($this->messages["NoNegativeNumbers"]);
+                            return;
+                        }
+                        $this->takeEconomyMoney($player->getName(), $data[1]);
+                        $this->addMoney($player->getName(), $data[1]);
+                        $player->sendMessage(str_replace("{amount}", $data[1], $this->messages["Deposit"]));
+                        $this->addTransaction($player->getName(), str_replace("{amount}", $data[1], $this->messages["DepositTransaction"]));
+
+                    },
+                )
+            );
         });
 
         $form->setTitle("§lDeposit Menu");
-        $form->addLabel("Balance: $" . $this->getMoney($player->getName()));
+        $this->getMoney($player->getName())->onCompletion(function(float $money) use($form): void{
+            $form->addLabel("Balance: $" . $money);
+        }, static fn() => null);
         $form->addInput("§rEnter amount to deposit", "100000");
-        $form->sendtoPlayer($player);
+        $player->sendForm($form);
         return $form;
     }
 
@@ -405,52 +666,57 @@ class BankUI extends PluginBase implements Listener{
             }
 
             if (!isset($list[$data[1]])){
-                $player->sendMessage("§aYou must select a valid player");
+                $player->sendMessage("§cYou must select a valid player!");
                 return true;
             }
 
             $index = $data[1];
             $playerName = $list[$index];
 
-            if ($this->getMoney($player->getName()) == 0){
-                $player->sendMessage("§aYou have no money in the bank to transfer money");
-                return true;
-            }
-            if ($this->getMoney($player->getName()) < $data[2]){
-                $player->sendMessage("§aYou do not have enough money in your bank to transfer $" . $data[2]);
-                return true;
-            }
-            if (!is_numeric($data[2])){
-                $player->sendMessage("§aYou did not enter a valid amount");
-                return true;
-            }
-            if ($data[2] <= 0){
-                $player->sendMessage("§aYou must transfer at least $1");
-                return true;
-            }
-            $player->sendMessage("§aYou have transferred $" . $data[2] . " into " . $playerName . "'s bank account");
-            if (!$this->getServer()->getPlayerExact($playerName)) {
-                return true;
-            }
-            $otherPlayer = $this->getServer()->getPlayerExact($playerName);
-            $otherPlayer->sendMessage("§a" . $player->getName() . " has transferred $" . $data[2] . " into your bank account");
-            $this->addTransaction($player->getName(), "§aTransferred $" . $data[2] . " into " . $playerName . "'s bank account");
-            $this->takeMoney($player->getName(), $data[2]);
-            $this->addMoney($otherPlayer->getName(), $data[2]);
+            $this->getMoney($player->getName())->onCompletion(function(float $money) use ($player, $playerName, $data): void{
+                if ($money == 0){
+                    $player->sendMessage($this->messages["TransferNoMoney"]);
+                    return;
+                }
+                if ($money < $data[2]){
+                    $player->sendMessage(str_replace("{amount}", $data[2], $this->messages["TransferNotEnoughMoney"]));
+                    return;
+                }
+                if (!is_numeric($data[2])){
+                    $player->sendMessage($this->messages["InvalidAmount"]);
+                    return;
+                }
+                if ($data[2] <= 0){
+                    $player->sendMessage($this->messages["NoNegativeNumbers"]);
+                    return;
+                }
+                if (!$this->getServer()->getPlayerExact($playerName)) {
+                    $player->sendMessage("§cThe player you have selected in an invalid player!");
+                    return;
+                }
+                $player->sendMessage(str_replace(["{amount}", "{player}"], [$data[2], $playerName], $this->messages["SentTransfer"]));
+                $otherPlayer = $this->getServer()->getPlayerExact($playerName);
+                $otherPlayer->sendMessage(str_replace(["{amount}", "{player}"], [$data[2], $player->getName()], $this->messages["ReceivedTransfer"]));
+                $this->addTransaction($player->getName(), str_replace(["{amount}", "{player}"], [$data[2], $playerName], $this->messages["SentTransferTransaction"]));
+                $this->addTransaction($playerName, str_replace(["{amount}", "{player}"], [$data[2], $player->getName()], $this->messages["ReceivedTransferTransaction"]));
+                $this->takeMoney($player->getName(), $data[2]);
+                $this->addMoney($otherPlayer->getName(), $data[2]);
+            }, static fn() => null);
             });
 
 
         $form->setTitle("§lTransfer Menu");
-        $form->addLabel("Balance: $" . $this->getMoney($player->getName()));
+        $this->getMoney($player->getName())->onCompletion(function(float $money) use($form): void{
+            $form->addLabel("Balance: $" . $money);
+        }, static fn() => null);
         $form->addDropdown("Select a Player", $list);
         $form->addInput("§rEnter amount to transfer", "100000");
-        $form->sendtoPlayer($player);
+        $player->sendForm($form);
         return $form;
     }
 
     public function transactionsForm($player)
     {
-        $playerMoney = EconomyAPI::getInstance()->myMoney($player);
         $form = new SimpleForm(function (Player $player, int $data = null){
             $result = $data;
             if ($result === null) {
@@ -459,14 +725,14 @@ class BankUI extends PluginBase implements Listener{
         });
 
         $form->setTitle("§lTransactions Menu");
-        if ($this->playersTransactions[$player->getName()] === 0){
-            $form->setContent("You have not made any transactions yet");
+        if (empty($this->playersTransactions[$player->getName()])){
+            $form->setContent($this->messages["NoTransactions"]);
         }
         else {
             $form->setContent($this->playersTransactions[$player->getName()]);
         }
         $form->addButton("§l§cEXIT\n§r§dClick to close...",0,"textures/ui/cancel");
-        $form->sendtoPlayer($player);
+        $player->sendForm($form);
         return $form;
     }
 
@@ -480,42 +746,41 @@ class BankUI extends PluginBase implements Listener{
         });
 
         $form->setTitle("§l" . $player . "'s Transactions");
-        if ($this->getServer()->getPlayerExact($player) instanceof Player)
-        {
-            if ($this->playersTransactions[$player] === 0){
-                $form->setContent($player . " has not made any transactions yet");
+        $this->getTransactions($player)->onCompletion(function(string $transactions) use($form, $player): void{
+            if (empty($transactions)){
+                $form->setContent("§c" . $player . " has not made any transactions yet!");
             }
             else {
-                $form->setContent($this->playersTransactions[$player]);
+                $form->setContent($transactions);
             }
-        }
-        else
-        {
-            $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player . ".yml", Config::YAML);
-            if ($playerBankMoney->get('Transactions') === 0){
-                $form->setContent($player . " has not made any transactions yet");
-            }
-            else {
-                $form->setContent($playerBankMoney->get('Transactions'));
-            }
-            $playerBankMoney->save();
-        }
+        }, static fn() => null);
         $form->addButton("§l§cEXIT\n§r§dClick to close...",0,"textures/ui/cancel");
-        $form->sendtoPlayer($sender);
+        $sender->sendForm($form);
         return $form;
+    }
+
+    public function addEconomyMoney(string $player, $amount)
+    {
+        if ($this->economyType == 1) return $this->economyPlugin->getAPI()->addToPlayerBalance($player, $amount);
+        // Todo: return $this->economyPlugin->getBalance();
+    }
+
+    public function takeEconomyMoney(string $player, $amount)
+    {
+        if ($this->economyType == 1) return $this->economyPlugin->getAPI()->subtractFromPlayerBalance($player, $amount);
+        // Todo: return $this->economyPlugin->getBalance();
     }
 
     public function addMoney(string $player, $amount)
     {
         if ($this->getServer()->getPlayerExact($player) instanceof Player)
         {
-            $this->playersMoney[$player] = $this->playersMoney[$player] + $amount;
+            $this->playersMoney[$player] = $this->playersMoney[$player] + (float)$amount;
+            if ($this->scoreHud) ScoreHudTags::updateScoreHud($this->getServer()->getPlayerExact($player), $this->playersMoney[$player]);
         }
         else
         {
-            $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player . ".yml", Config::YAML);
-            $playerBankMoney->set("Money", $playerBankMoney->get("Money") + $amount);
-            $playerBankMoney->save();
+            $this->database->executeInsert("init.table.addmoney", ["playername" => $player, "money" => (float)$amount]);
         }
     }
 
@@ -523,98 +788,405 @@ class BankUI extends PluginBase implements Listener{
     {
         if ($this->getServer()->getPlayerExact($player) instanceof Player)
         {
-            $this->playersMoney[$player] = $this->playersMoney[$player] - $amount;
+            $this->playersMoney[$player] = $this->playersMoney[$player] - (float)$amount;
+            if ($this->scoreHud) ScoreHudTags::updateScoreHud($this->getServer()->getPlayerExact($player), $this->playersMoney[$player]);
         }
         else
         {
-            $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player . ".yml", Config::YAML);
-            $playerBankMoney->set("Money", $playerBankMoney->get("Money") - $amount);
-            $playerBankMoney->save();
+            $this->database->executeInsert("init.table.takemoney", ["playername" => $player, "money" => (float)$amount]);
         }
     }
 
-    public function setMoney(string $player, $amount)
+    public function setMoney(string $player, $amount, bool $forceToDatabase = false)
     {
-        if ($this->getServer()->getPlayerExact($player) instanceof Player)
+        if ($forceToDatabase || !$this->getServer()->getPlayerExact($player) instanceof Player)
         {
-            $this->playersMoney[$player] = $amount;
+            $this->database->executeInsert("init.table.setmoney", ["playername" => $player, "money" => (float)$amount]);
         }
         else
         {
-            $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player . ".yml", Config::YAML);
-            $playerBankMoney->set("Money", $amount);
-            $playerBankMoney->save();
+            $this->playersMoney[$player] = (float)$amount;
+            if ($this->scoreHud) ScoreHudTags::updateScoreHud($this->getServer()->getPlayerExact($player), (float)$amount);
         }
     }
 
-    public function getMoney(string $player)
+    public function getMoney(string $player, bool $forceFromDatabase = false)
     {
-        if ($this->getServer()->getPlayerExact($player) instanceof Player)
+        if ($forceFromDatabase || !$this->getServer()->getPlayerExact($player) instanceof Player)
         {
-            return $this->playersMoney[$player];
+            $promise = new PromiseResolver();
+            $this->database->executeSelect("init.table.getmoney", ["playername" => $player], function(array $rows) use ($promise) {
+                if (empty($rows[0])) $promise->resolve(-1);
+                else $promise->resolve($rows[0]["Money"]);
+            });
+            return $promise->getPromise();
         }
         else
         {
-            $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player . ".yml", Config::YAML);
-            $money = $playerBankMoney->get("Money");
-            $playerBankMoney->save();
-            return $money;
+            $promise = new PromiseResolver();
+            $promise->resolve((float)$this->playersMoney[$player]);
+            return $promise->getPromise();
         }
     }
 
-    public function addTransaction(string $player, string $message)
+    public function addTransaction(string $player, string $transaction)
     {
         if ($this->getServer()->getPlayerExact($player) instanceof Player)
         {
-            if ($this->playersTransactions[$player] === 0){
-                $this->playersTransactions[$player] = date("§b[d/m/y]") . "§e - " . $message . "\n";
+            if (empty($this->playersTransactions[$player])){
+                $this->playersTransactions[$player] = date("§b[d/m/y]") . "§e - " . $transaction . "\n";
             }
             else {
-                $this->playersTransactions[$player] = date("§b[d/m/y]") . "§e - " . $message . "\n" . $this->playersTransactions[$player];
+                $this->playersTransactions[$player] = date("§b[d/m/y]") . "§e - " . $transaction . "\n" . $this->playersTransactions[$player];
             }
+            return;
         }
         else
         {
-            $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player . ".yml", Config::YAML);
-            if ($playerBankMoney->get('Transactions') === 0){
-                $playerBankMoney->set('Transactions', date("§b[d/m/y]") . "§e - " . $message . "\n");
-            }
-            else {
-                $playerBankMoney->set('Transactions', date("§b[d/m/y]") . "§e - " . $message . "\n" . $playerBankMoney->get('Transactions'));
-            }
-            $playerBankMoney->save();
+            $this->database->executeInsert("init.table.addtransaction", ["playername" => $player, "transaction" => date("§b[d/m/y]") . "§e - " . $transaction . "\n"]);
         }
-
-
     }
 
-    public function saveData(Player $player)
+    public function setTransactions(string $player, string $transactions, bool $forceToDatabase = false)
     {
-        $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAML);
-        $playerBankMoney->set("Money", $this->playersMoney[$player->getName()]);
-        $playerBankMoney->set("Transactions", $this->playersTransactions[$player->getName()]);
-        $playerBankMoney->save();
+        if ($forceToDatabase || !$this->getServer()->getPlayerExact($player) instanceof Player)
+        {
+            $this->database->executeInsert("init.table.settransactions", ["playername" => $player, "transactions" => $transactions]);
+        }
+        else
+        {
+            $this->playersTransactions[$player] = date("§b[d/m/y]") . "§e - " . $transactions;
+        }
     }
 
-    public function saveAllData()
+    public function getTransactions(string $player, $forceFromDatabase = false)
+    {
+        if ($forceFromDatabase || !$this->getServer()->getPlayerExact($player) instanceof Player) {
+            $promise = new PromiseResolver();
+            $this->database->executeSelect("init.table.gettransactions", ["playername" => $player], function (array $rows) use ($promise) {
+                if (empty($rows[0])) $promise->resolve("");
+                else $promise->resolve($rows[0]["Transactions"]);
+            });
+            return $promise->getPromise();
+        } else {
+            $promise = new PromiseResolver();
+            $promise->resolve($this->playersTransactions[$player]);
+            return $promise->getPromise();
+        }
+    }
+
+    public function saveData(Player $player, $removeFromArray = false)
+    {
+        if (!isset($this->playersTransactions[$player->getName()]) || is_null($this->playersTransactions[$player->getName()])) $transactions = "";
+        else $transactions = $this->playersTransactions[$player->getName()];
+        $this->setMoney($player->getName(), $this->playersMoney[$player->getName()], true);
+        $this->setTransactions($player->getName(), $transactions, true);
+        if ($removeFromArray)
+        {
+            unset($this->playersMoney[$player->getName()]);
+            unset($this->playersTransactions[$player->getName()]);
+        }
+    }
+
+    public function saveAllData($removeFromArray = false)
     {
         foreach ($this->playersMoney as $player => $amount) {
-            $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player . ".yml", Config::YAML);
-            $playerBankMoney->set("Money", $amount);
-            $playerBankMoney->save();
+            $this->setMoney($player, $amount, true);
+            if ($removeFromArray) unset($this->playersMoney[$player]);
         }
-        foreach ($this->playersTransactions as $player => $amount) {
-            $playerBankTransactions = new Config($this->getDataFolder() . "Players/" . $player . ".yml", Config::YAML);
-            $playerBankTransactions->set("Transactions", $this->playersTransactions[$player]);
-            $playerBankTransactions->save();
+        foreach ($this->playersTransactions as $player => $transactions) {
+            if (!isset($transactions)) $transactions = "";
+            $this->setTransactions($player, $transactions, true);
+            if ($removeFromArray) unset($this->playersTransactions[$player]);
         }
     }
 
     public function loadData(Player $player)
     {
-        $playerBankMoney = new Config($this->getDataFolder() . "Players/" . $player->getName() . ".yml", Config::YAML);
-        $this->playersMoney[$player->getName()] = $playerBankMoney->get("Money");
-        $this->playersTransactions[$player->getName()] = $playerBankMoney->get("Transactions");
+        $this->getMoney($player->getName(), true)->onCompletion(function(float $money) use($player): void{
+            $this->playersMoney[$player->getName()] = $money;
+            if ($this->scoreHud) ScoreHudTags::updateScoreHud($player, (float)$money);
+//            while (true)
+//            {
+//                echo ($money);
+//                $loaded = false;
+//                $this->getMoney($player->getName(), true)->onCompletion(function(float $money) use($player, &$loaded): void{
+//
+//                    if (!empty($money) && $money !== -1)
+//                    {
+//                        $loaded = true;
+//                        $this->playersMoney[$player->getName()] = $money;
+//                        return;
+//                    }
+//                }, static fn() => null);
+//                if ($loaded) break;
+//            }
+        }, static fn() => null);
+
+        $this->getTransactions($player->getName(), true)->onCompletion(function(string $transactions) use($player): void{
+            $this->playersTransactions[$player->getName()] = $transactions;
+        }, static fn() => null);
+    }
+
+    public function backupData(string $player = null)
+    {
+        if (!$this->backupsEnabled) throw new \InvalidArgumentException("Backups must be enabled to backup data!");
+        $this->saveAllData();
+
+        $this->database->executeSelect("init.table.getall", [], function(array $rows){
+
+            $this->backupDatabase->executeGeneric("init.table.drop");
+            $this->backupDatabase->executeGeneric("init.table.creation");
+            foreach ($rows as $row)
+            {
+                $this->backupDatabase->executeInsert("init.table.createaccount", ["playername" => $row["Player"], "money" => $row["Money"], "transactions" => $row["Transactions"]]);
+            }
+        });
+        if (is_null($player)) $this->getLogger()->info("Your server has been backed up automatically.");
+        else $this->getLogger()->info($player ." has backed up the server.");
+    }
+
+    public function saveRestore(string $player = null)
+    {
+        if (!$this->backupsEnabled) throw new \InvalidArgumentException("Backups must be enabled to save a restore point!");
+        $this->saveAllData();
+
+        try
+        {
+            $this->restoreDatabase = libasynql::create($this, ["type" => "sqlite", "sqlite" => ["file" => "restore.sqlite"], 1],[
+                "sqlite" => "sqlite.sql",
+                "mysql" => "mysql.sql"
+            ]);
+
+            $this->database->executeSelect("init.table.getall", [], function(array $rows){
+
+                $this->restoreDatabase->executeGeneric("init.table.drop");
+                $this->restoreDatabase->executeGeneric("init.table.creation");
+                foreach ($rows as $row)
+                {
+                    $this->restoreDatabase->executeInsert("init.table.createaccount", ["playername" => $row["Player"], "money" => $row["Money"], "transactions" => $row["Transactions"]]);
+                }
+            });
+            // Todo: Closing Database Causes A Query Invalid Error
+            //$this->restoreDatabase->close();
+            $this->getLogger()->info("A backup restore point has been created.");
+        }
+        catch (SqlError $e)
+        {
+            $this->getLogger()->critical("An error occurred while connecting to the restore backup database.");
+            if (is_null($player) && $p = $this->getServer()->getPlayerExact($player)) $p->sendMessage("§cAn error occurred while connecting to the restore backup database.");
+        }
+
+    }
+
+    public function loadBackup(string $player = null)
+    {
+        if (!$this->backupsEnabled) throw new \InvalidArgumentException("Backups must be enabled to load a backup!");
+
+        $this->saveRestore($player);
+
+        $this->backupDatabase->executeSelect("init.table.getall", [], function(array $rows){
+
+            $this->database->executeGeneric("init.table.drop");
+            $this->database->executeGeneric("init.table.creation");
+            foreach ($rows as $row)
+            {
+                $this->database->executeInsert("init.table.createaccount", ["playername" => $row["Player"], "money" => $row["Money"], "transactions" => $row["Transactions"]]);
+            }
+        });
+
+        // Todo: Try to fix without delay.
+        $this->getScheduler()->scheduleDelayedTask(new ClosureTask(
+            function() use ($player) {
+                if (is_null($player)) $this->getLogger()->info("Your server has loaded a backup.");
+                else $this->getLogger()->info($player ." has loaded a backup.");
+                foreach ($this->getServer()->getOnlinePlayers() as $player) $this->loadData($player);
+            }
+        ), 10);
+    }
+
+    public function restoreBackup(string $player = null)
+    {
+        if (!$this->backupsEnabled) throw new \InvalidArgumentException("Backups must be enabled to restore a backup!");
+
+        try
+        {
+            $this->restoreDatabase = libasynql::create($this, ["type" => "sqlite", "sqlite" => ["file" => "restore.sqlite"], 1],[
+                "sqlite" => "sqlite.sql",
+                "mysql" => "mysql.sql"
+            ]);
+
+            $this->restoreDatabase->executeSelect("init.table.getall", [], function(array $rows){
+
+                $this->database->executeGeneric("init.table.drop");
+                $this->database->executeGeneric("init.table.creation");
+                foreach ($rows as $row)
+                {
+                    $this->database->executeInsert("init.table.createaccount", ["playername" => $row["Player"], "money" => $row["Money"], "transactions" => $row["Transactions"]]);
+                }
+            });
+            //$database->close();
+            // Todo: Try to fix without delay.
+            $this->getScheduler()->scheduleDelayedTask(new ClosureTask(
+                function() use ($player) {
+                    if (is_null($player)) $this->getLogger()->info("Your server has restored a backup.");
+                    else $this->getLogger()->info($player ." has restored a backup.");
+                    foreach ($this->getServer()->getOnlinePlayers() as $player) $this->loadData($player);
+                }
+            ), 10);
+        }
+        catch (SqlError $e)
+        {
+            $this->getLogger()->critical("An error occurred while connecting to the restore backup database.");
+            if (is_null($player) && $p = $this->getServer()->getPlayerExact($player)) $p->sendMessage("§cAn error occurred while connecting to the restore backup database.");
+        }
+    }
+
+
+    // Todo: Use multiple databases at the same time.
+    public function migrateDatabase(string $migrateFrom, string $migrateTo, Player $player = null)
+    {
+        // Supported Conversions: YAML, SQL, SQLite, MySQL
+
+        $migrateTo = strtolower($migrateTo);
+        $migrateFrom = strtolower($migrateFrom);
+        $supportedDatabases = ["sql", "sqlite", "mysql"];
+
+        $currentDBType = $this->getConfig()->getNested("database.type");
+
+        if ($migrateFrom == "sql")
+        {
+            if ($currentDBType == "mysql") $migrateFrom = "mysql";
+            else $migrateFrom = "sql";
+        }
+        if ($migrateTo == "sql")
+        {
+            if ($currentDBType == "mysql") $migrateTo = "sqlite";
+            else $migrateTo = "mysql";
+        }
+
+        if ($migrateFrom == "yaml" && $migrateTo == "sql")
+        {
+            if (!file_exists($this->getDataFolder() . "Players")) return false;
+            $this->getLogger()->warning("Your database is being migrated to our new database system, please do not restart your server until this finishes.");
+            foreach (glob($this->getDataFolder() . "Players/*.yml") as $players)
+            {
+                $playerYAMLBank = new Config($players);
+                $transactions = $playerYAMLBank->get('Transactions');
+                if (empty($transactions) || $transactions == 0) $transactions = "";
+                else if (is_array($transactions)) $transactions = implode("\n",$transactions);
+                $this->createAccount(pathinfo($players)['filename'], $playerYAMLBank->get('Money'), $transactions);
+                unlink($players);
+            }
+            rmdir($this->getDataFolder() . "Players");
+            $this->getLogger()->warning("Database migration has been complete.");
+            return true;
+        }
+        else if (!in_array($migrateFrom, $supportedDatabases) || !in_array($migrateTo, $supportedDatabases))
+        {
+            throw new \InvalidArgumentException("You can not migrate from and to these databases. Make sure they are either SQL, MySQL, or SQLite");
+        }
+        else if ($migrateFrom == $migrateTo)
+        {
+            throw new \InvalidArgumentException("You can not migrate a database to the same database");
+        }
+        else
+        {
+            $this->getLogger()->warning("Your database is being migrated to " . $migrateTo . ", please do not restart your server until this finishes.");
+            if (!is_null($player) && $this->getServer()->getPlayerExact($player->getName()))
+            {
+                $player->sendMessage("§l§aStarted Migration: §r§eYour database is being migrated to " . $migrateTo . ", please do not restart your server until this finishes.");
+            }
+            $config = $this->getConfig();
+
+            $this->database->close();
+
+            try
+            {
+                if ($migrateFrom == "mysql")
+                {
+                    $this->database = libasynql::create($this, ["type" => "mysql", "mysql" => ["host" => $config->getNested("database.mysql.host"), "username" => $config->getNested("database.mysql.username"), "password" => $config->getNested("database.mysql.password"), "schema" => $config->getNested("database.mysql.schema")], $config->getNested("database.worker-limit")],[
+                        "sqlite" => "sqlite.sql",
+                        "mysql" => "mysql.sql"
+                    ]);
+                }
+                else
+                {
+                    $this->database = libasynql::create($this, ["type" => "sqlite", "sqlite" => ["file" => $config->getNested("database.sqlite.file")], $config->getNested("database.worker-limit")],[
+                        "sqlite" => "sqlite.sql",
+                        "mysql" => "mysql.sql"
+                    ]);
+                }
+            }
+            catch (SqlError $e)
+            {
+                $this->database = libasynql::create($this, $this->getConfig()->get("database"), [
+                    "sqlite" => "sqlite.sql",
+                    "mysql" => "mysql.sql"
+                ]);
+                $this->getLogger()->critical("An error occurred while migrating your database. Make sure the SQLite and MysQL database is setup correctly!");
+                if (!is_null($player) && $this->getServer()->getPlayerExact($player->getName()))
+                {
+                    $player->sendMessage("§l§aFailed Migration: §r§eAn error occurred while migrating your database. Make sure the SQLite and MysQL database is setup correctly!");
+                }
+                return false;
+            }
+
+
+
+            $this->database->executeSelect("init.table.getall", [], function(array $rows) use ($config, $migrateTo, $player){
+                $this->database->close();
+
+                try
+                {
+                    if ($migrateTo == "mysql")
+                    {
+                        $this->database = libasynql::create($this, ["type" => "mysql", "mysql" => ["host" => $config->getNested("database.mysql.host"), "username" => $config->getNested("database.mysql.username"), "password" => $config->getNested("database.mysql.password"), "schema" => $config->getNested("database.mysql.schema")], $config->getNested("database.worker-limit")],[
+                            "sqlite" => "sqlite.sql",
+                            "mysql" => "mysql.sql"
+                        ]);
+                    }
+                    else
+                    {
+                        $this->database = libasynql::create($this, ["type" => "sqlite", "sqlite" => ["file" => $config->getNested("database.sqlite.file")], $config->getNested("database.worker-limit")],[
+                            "sqlite" => "sqlite.sql",
+                            "mysql" => "mysql.sql"
+                        ]);
+                    }
+                }
+                catch (SqlError $e)
+                {
+                    $this->database = libasynql::create($this, $this->getConfig()->get("database"), [
+                        "sqlite" => "sqlite.sql",
+                        "mysql" => "mysql.sql"
+                    ]);
+                    $this->getLogger()->critical("An error occurred while migrating your database. Make sure the SQLite and MysQL database is setup correctly!");
+                    if (!is_null($player) && $this->getServer()->getPlayerExact($player->getName()))
+                    {
+                        $player->sendMessage("§l§cFailed Migration: §r§eAn error occurred while migrating your database. Make sure the SQLite and MysQL database is setup correctly!");
+                    }
+                    return false;
+                }
+                $this->database->executeGeneric("init.table.drop");
+                $this->database->executeGeneric("init.table.creation");
+                foreach ($rows as $row)
+                {
+                    //echo (var_dump($row));
+                    $this->createAccount($row["Player"], $row["Money"], $row["Transactions"]);
+                }
+                $this->database->close();
+
+                $this->database = libasynql::create($this, $this->getConfig()->get("database"), [
+                    "sqlite" => "sqlite.sql",
+                    "mysql" => "mysql.sql"
+                ]);
+                $this->getLogger()->warning("Database migration has been complete!");
+                if (!is_null($player) && $this->getServer()->getPlayerExact($player->getName()))
+                {
+                    $player->sendMessage("§l§aSuccessful Migration: §r§eDatabase migration has been complete!");
+                }
+            });
+        }
     }
 
     public static function getInstance(): BankUI {
