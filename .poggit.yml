@@ -6,6 +6,8 @@ projects:
   BankUI:
     path: ""
     libs:
-    - src: Vecnavium/FormsUI/FormsUI
-      version: ^1.0.0
+    - src: jojoe77777/FormAPI/libFormAPI
+      version: ^2.1
+    - src: poggit/libasynql/libasynql
+      version: ^4.0.1
 ...
