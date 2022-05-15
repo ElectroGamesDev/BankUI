@@ -16,12 +16,13 @@
  - Bedrock Economy Support
  - ScoreHud Support
 # Command
-Player Commands
-- /bank
-Admin Commands
-- /bank {PlayerName} 
-- /bank migrate - DO NOT USE THIS UNLESS YOU KNOW WHAT YOU ARE DOING!
-- /bank backup {save | load | restore} - Becareful when loading a backup, you will lose all data since the last saved backup unless you restore it but DO NOT take the risk !
+- Player Commands
+ - /bank
+
+- Admin Commands
+ - /bank {PlayerName} 
+ - /bank migrate - DO NOT USE THIS UNLESS YOU KNOW WHAT YOU ARE DOING!
+ - /bank backup {save | load | restore} - Becareful when loading a backup, you will lose all data since the last saved backup unless you restore it but DO NOT take the risk !
 # Important
 - This plugin Requires Bedrock Economy!
 # ScoreHud Support
@@ -48,9 +49,9 @@ Admin Commands
 - Set Money:
 ```BankUI::getInstance()->setMoney($playerName, $amount);```
 - Get Money:
-```BankUI::getInstance()->>getMoney($playerName)->onCompletion(function(float $money): void{
-    // Code (use $money)
-}, static fn() => null);```
+```BankUI::getInstance()->>getMoney($playerName)->onCompletion(function(float $money): void{```
+    ```// Code (use $money)```
+```}, static fn() => null);```
 - Add Economy Money:
 ```BankUI::getInstance()->addEconomyMoney($playerName, $amount);```
 - Take Economy Money:
@@ -58,13 +59,13 @@ Admin Commands
 - Add Transaction:
 ```BankUI::getInstance()->addTransaction($playerName, $transaction);```
 - Get Transactions:
-```BankUI::getInstance()->>getTransactions($playerName)->onCompletion(function(string $transactions): void{
-    // Code (use $transactions)
-}, static fn() => null);```
+```BankUI::getInstance()->>getTransactions($playerName)->onCompletion(function(string $transactions): void{``
+    ```// Code (use $transactions)```
+```}, static fn() => null);```
 - Check If Account Exists:
-```BankUI::getInstance()->>accountExists($playerName)->onCompletion(function(bool $exists): void{
-    // Code (use $exists)
-}, static fn() => null);```
+```BankUI::getInstance()->>accountExists($playerName)->onCompletion(function(bool $exists): void{```
+    ```// Code (use $exists)```
+```}, static fn() => null);```
 - Set Transactions:
 ```BankUI::getInstance()->setTransaction($playerName, $transactions);```
 - Save Data:
@@ -81,18 +82,21 @@ Admin Commands
 ```BankUI::getInstance()->migrateDatabase($migrateFrom, $migrateTo);```
 # Config
 ```
-# DO NOT TOUCH
-config-ver: 3
-
 # If true, players will get daily interest for the money in their bank
 enable-interest: true
 
 # Interst Rates is in percentage so if interst-rates = 50, it means 50% Interest Rates, if it is set at 1, it means 1% interest rates. (It is recommended to keep this low)
 interest-rates: 1
 
-# What Economy Plugin Do You Use? 1 = BedrockEconomy, 2 = Capital
-EconomyPlugin: 1
+# Backup System - You may want to set this to false if you think you or your staff may accidentally restore a backup and lose your data
+enable-backups: true 
 
+# "enabled-backups" must be true for automatic backups. 
+enable-automatic-backups: true
+
+# "enable-automatic-backups" must be true for this. This is how often your databases get automatically backed up. This is in minutes so 60 = 60 minutes. This number should be between 720-1440 (12-24 hours) DO NOT go less
+# than 60 (1 hour) as this could cause lag for a few seconds if you have had alot of unique players join yuour server.
+automatic-backups-time: 720
 
 database:
   # The database type. "sqlite" and "mysql" are supported.
@@ -113,6 +117,30 @@ database:
   # The maximum number of simultaneous SQL queries
   # Recommended: 1 for sqlite, 2 for MySQL. You may want to further increase this value if your MySQL connection is very slow.
   worker-limit: 1
+  
+# "enable-backups" must be enabled for backups to work.
+backup-database:
+  # The database type. "sqlite" and "mysql" are supported. This should be set to "mysql" for backups to be most useful although you can use "sqlite" if you do not have a MySQL database.
+  type: sqlite
+
+  # Edit these settings only if you choose "sqlite".
+  sqlite:
+    # The file name of the database in the plugin data folder.
+    # You can also put an absolute path here.
+    file: backup.sqlite
+  # Edit these settings only if you choose "mysql".
+  mysql:
+    host: 127.0.0.1
+    # Avoid using the "root" user for security reasons.
+    username: root
+    password: ""
+    schema: your_schema
+  # The maximum number of simultaneous SQL queries
+  # Recommended: 1 for sqlite, 2 for MySQL. You may want to further increase this value if your MySQL connection is very slow.
+  worker-limit: 1
+  
+# DO NOT TOUCH
+config-ver: 2
 ```
 # Credits
 - Icon from www.flaticon.com
