@@ -1,8 +1,59 @@
-# DO NOT TOUCH
-config-ver: 1
-
 # If true, players will get daily interest for the money in their bank
 enable-interest: true
 
 # Interst Rates is in percentage so if interst-rates = 50, it means 50% Interest Rates, if it is set at 1, it means 1% interest rates. (It is recommended to keep this low)
 interest-rates: 1
+
+# Backup System - You may want to set this to false if you think you or your staff may accidentally restore a backup and lose your data
+enable-backups: true 
+
+# "enabled-backups" must be true for automatic backups. 
+enable-automatic-backups: true
+
+# "enable-automatic-backups" must be true for this. This is how often your databases get automatically backed up. This is in minutes so 60 = 60 minutes. This number should be between 720-1440 (12-24 hours) DO NOT go less
+# than 60 (1 hour) as this could cause lag for a few seconds if you have had alot of unique players join yuour server.
+automatic-backups-time: 720
+
+database:
+  # The database type. "sqlite" and "mysql" are supported.
+  type: sqlite
+
+  # Edit these settings only if you choose "sqlite".
+  sqlite:
+    # The file name of the database in the plugin data folder.
+    # You can also put an absolute path here.
+    file: players.sqlite
+  # Edit these settings only if you choose "mysql".
+  mysql:
+    host: 127.0.0.1
+    # Avoid using the "root" user for security reasons.
+    username: root
+    password: ""
+    schema: your_schema
+  # The maximum number of simultaneous SQL queries
+  # Recommended: 1 for sqlite, 2 for MySQL. You may want to further increase this value if your MySQL connection is very slow.
+  worker-limit: 1
+  
+# "enable-backups" must be enabled for backups to work.
+backup-database:
+  # The database type. "sqlite" and "mysql" are supported. This should be set to "mysql" for backups to be most useful although you can use "sqlite" if you do not have a MySQL database.
+  type: sqlite
+
+  # Edit these settings only if you choose "sqlite".
+  sqlite:
+    # The file name of the database in the plugin data folder.
+    # You can also put an absolute path here.
+    file: backup.sqlite
+  # Edit these settings only if you choose "mysql".
+  mysql:
+    host: 127.0.0.1
+    # Avoid using the "root" user for security reasons.
+    username: root
+    password: ""
+    schema: your_schema
+  # The maximum number of simultaneous SQL queries
+  # Recommended: 1 for sqlite, 2 for MySQL. You may want to further increase this value if your MySQL connection is very slow.
+  worker-limit: 1
+  
+# DO NOT TOUCH
+config-ver: 2
