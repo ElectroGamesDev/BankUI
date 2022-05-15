@@ -1,9 +1,9 @@
 main : Electro\BankUI\BankUI
 name: BankUI
-version: 3.0.0
+version: 4.0.0
 api: 4.0.0
 Author: Electro
-depend: ["EconomyAPI"]
+depend: ["BedrockEconomy"]
 
 commands:
   bank:
@@ -13,7 +13,13 @@ commands:
     
 permissions:
   bankui.admin:
-    description: Permission to view other players bank
+    description: Permission to manage other players bank
+    default: op
+  bankui.admin.backup:
+    description: Permission to backup data
+    default: op
+  bankui.admin.migrate:
+    description: Permission to migrate data
     default: op
   bankui.cmd:
     description: Permission to open bank ui
