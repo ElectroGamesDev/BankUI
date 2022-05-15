@@ -16,10 +16,10 @@
  - Bedrock Economy Support
  - ScoreHud Support
 # Command
-- Player Commands
+Player Commands
  - /bank
 
-- Admin Commands
+Admin Commands
  - /bank {PlayerName} 
  - /bank migrate - DO NOT USE THIS UNLESS YOU KNOW WHAT YOU ARE DOING!
  - /bank backup {save | load | restore} - Becareful when loading a backup, you will lose all data since the last saved backup unless you restore it but DO NOT take the risk !
@@ -50,7 +50,7 @@
 ```BankUI::getInstance()->setMoney($playerName, $amount);```
 - Get Money:
 ```BankUI::getInstance()->>getMoney($playerName)->onCompletion(function(float $money): void{```
-    ```// Code (use $money)```
+```    // Code (use $money)```
 ```}, static fn() => null);```
 - Add Economy Money:
 ```BankUI::getInstance()->addEconomyMoney($playerName, $amount);```
@@ -59,12 +59,12 @@
 - Add Transaction:
 ```BankUI::getInstance()->addTransaction($playerName, $transaction);```
 - Get Transactions:
-```BankUI::getInstance()->>getTransactions($playerName)->onCompletion(function(string $transactions): void{``
-    ```// Code (use $transactions)```
+```BankUI::getInstance()->>getTransactions($playerName)->onCompletion(function(string $transactions): void{```
+```    // Code (use $transactions)```
 ```}, static fn() => null);```
 - Check If Account Exists:
 ```BankUI::getInstance()->>accountExists($playerName)->onCompletion(function(bool $exists): void{```
-    ```// Code (use $exists)```
+```    // Code (use $exists)```
 ```}, static fn() => null);```
 - Set Transactions:
 ```BankUI::getInstance()->setTransaction($playerName, $transactions);```
