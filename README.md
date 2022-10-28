@@ -22,9 +22,9 @@ Player Commands
 Admin Commands
  - /bank {PlayerName} 
  - /bank migrate - DO NOT USE THIS UNLESS YOU KNOW WHAT YOU ARE DOING!
- - /bank backup {save | load | restore} - Becareful when loading a backup, you will lose all data since the last saved backup unless you restore it but DO NOT take the risk !
+ - /bank backup {save | load | restore} - Becareful when loading a backup, you will lose all data since the last saved backup unless you restore it but DO NOT take the risk!
 # Important
-- This plugin Requires Bedrock Economy!
+- This plugin requires the latest version of Bedrock Economy!
 # ScoreHud Support
 - ScoreHud Tag: ```{bankui.money}```
 # Images
@@ -33,7 +33,7 @@ Admin Commands
 ![Bank3](https://user-images.githubusercontent.com/34932094/122729371-b7e55f00-d23e-11eb-8a94-ee292bab50f8.PNG)
 ![Bank4](https://user-images.githubusercontent.com/34932094/122729372-b7e55f00-d23e-11eb-9a8c-f44571718108.PNG)
 ![Bank6](https://user-images.githubusercontent.com/34932094/124215248-48cafe80-dab9-11eb-930d-df1b113a7d3d.PNG)
-![admn](https://user-images.githubusercontent.com/34932094/141248349-65d9629c-2e30-42d3-aa4a-d05909c5908e.PNG)
+![Admin](https://user-images.githubusercontent.com/34932094/141248349-65d9629c-2e30-42d3-aa4a-d05909c5908e.PNG)
 # Permissions
 - bankui.cmd
 - bankui.admin
@@ -42,6 +42,7 @@ Admin Commands
 # Developer API
 - You can give/take/set/get/save players money/transactions using our API.
 
+```BankUI::getInstance()->handleAction($player, $action, $subaction, $amount);```
 - Add Money:
 ```BankUI::getInstance()->addMoney($playerName, $amount);```
 - Take Money:
@@ -49,13 +50,35 @@ Admin Commands
 - Set Money:
 ```BankUI::getInstance()->setMoney($playerName, $amount);```
 - Get Money:
-```BankUI::getInstance()->>getMoney($playerName)->onCompletion(function(float $money): void{```
-```    // Code (use $money)```
+```BankUI::getInstance()->>getMoney($playerName)->onCompletion(function(float $amount): void{```
+```    // Use $amount to get player's balance```
 ```}, static fn() => null);```
 - Add Economy Money:
-```BankUI::getInstance()->addEconomyMoney($playerName, $amount);```
+```$this->addEconomyMoney($player->getName(),$data[1])->onCompletion(function (bool $updated): void{```
+```   if ($updated)```
+```   {```
+```   // Addition was successful ```
+```   }```
+```   else```
+```   {```
+```   // Addition was not successful```
+```   }```
+```}, static fn() => null);```
 - Take Economy Money:
-```BankUI::getInstance()->takeEconomyMoney($playerName, $amount);```
+```$this->takeEconomyMoney($player->getName(),$data[1])->onCompletion(function (bool $updated): void{```
+```   if ($updated)```
+```   {```
+```   // Deduction was successful ```
+```   }```
+```   else```
+```   {```
+```   // Deduction was not successful```
+```   }```
+```}, static fn() => null);```
+- Get Economy Money:
+```$this->getEconomyMoney($player->getName())->onCompletion(function (float $money): void{```
+```   use $money to get the player's money```
+```}, static fn() => null);```
 - Add Transaction:
 ```BankUI::getInstance()->addTransaction($playerName, $transaction);```
 - Get Transactions:
@@ -64,22 +87,22 @@ Admin Commands
 ```}, static fn() => null);```
 - Check If Account Exists:
 ```BankUI::getInstance()->>accountExists($playerName)->onCompletion(function(bool $exists): void{```
-```    // Code (use $exists)```
+```    // Use $exists to check if account exists```
 ```}, static fn() => null);```
 - Set Transactions:
-```BankUI::getInstance()->setTransaction($playerName, $transactions);```
+```BackupSystem::getInstance()->setTransaction($playerName, $transactions);```
 - Save Data:
-```BankUI::getInstance()->saveData($player);```
+```BackupSystem::getInstance()->saveData($player);```
 - Save All Online Players Data:
-```BankUI::getInstance()->saveAllData();```
+```BackupSystem::getInstance()->saveAllData();```
 - Backup Data - REQUIRES BACKUP ENABLED:
-```BankUI::getInstance()->backupData();```
+```BackupSystem::getInstance()->backupData();```
 - Load Backup - REQUIRES BACKUP ENABLED:
-```BankUI::getInstance()->loadBackup();```
+```BackupSystem::getInstance()->loadBackup();```
 - Restore Backup - REQUIRES BACKUP ENABLED:
-```BankUI::getInstance()->restoreBackup();```
+```BackupSystem::getInstance()->restoreBackup();```
 - Migrate Database (Only "SQLite", "MySQL", and "SQL" is supported. "SQL" will migrate the database from/to the current database type in use and you should Save All before using this. Make sure you know what your doing as you can lose all of your data if not used correctly.):
-```BankUI::getInstance()->migrateDatabase($migrateFrom, $migrateTo);```
+```DatabaseMigration::getInstance()->migrateDatabase($migrateFrom, $migrateTo);```
 # Config
 ```
 # If true, players will get daily interest for the money in their bank
