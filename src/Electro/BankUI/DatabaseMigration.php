@@ -32,7 +32,7 @@ class DatabaseMigration
         if ($migrateFrom == "sql")
         {
             if ($currentDBType == "mysql") $migrateFrom = "mysql";
-            else $migrateFrom = "sql";
+            else $migrateFrom = "sqlite";
         }
         if ($migrateTo == "sql")
         {
