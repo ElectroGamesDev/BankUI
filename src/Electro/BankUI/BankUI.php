@@ -851,7 +851,7 @@ class BankUI extends PluginBase implements Listener{
 
          if (!array_key_exists($player, $this->playersMoney) || !isset($this->playersMoney[$player]))
         {
-            $player->sendMessage("§cAn error occured");
+            $this->getServer()->getPlayerExact($player)->sendMessage("§cAn error occured");
             return;
         }
         
