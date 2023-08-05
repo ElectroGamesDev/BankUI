@@ -846,10 +846,10 @@ class BankUI extends PluginBase implements Listener{
 
     public function getMoney(string $player, bool $forceFromDatabase = false)
     {
-        if (!array_key_exists($player->getName(), $this->playersMoney) || !isset($this->playersMoney[$player->getName()]))
+        if (!array_key_exists($player, $this->playersMoney) || !isset($this->playersMoney[$player]))
             $this->createLoadData($this->getServer()->getPlayerExact($player));
 
-         if (!array_key_exists($player->getName(), $this->playersMoney) || !isset($this->playersMoney[$player->getName()]))
+         if (!array_key_exists($player, $this->playersMoney) || !isset($this->playersMoney[$player]))
         {
             $player->sendMessage("§cAn error occured");
             return;
