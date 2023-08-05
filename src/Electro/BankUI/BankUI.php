@@ -845,16 +845,7 @@ class BankUI extends PluginBase implements Listener{
     }
 
     public function getMoney(string $player, bool $forceFromDatabase = false)
-    {
-        if (!array_key_exists($player, $this->playersMoney) || !isset($this->playersMoney[$player]))
-            $this->createLoadData($this->getServer()->getPlayerExact($player));
-
-         if (!array_key_exists($player, $this->playersMoney) || !isset($this->playersMoney[$player]))
-        {
-            $this->getServer()->getPlayerExact($player)->sendMessage("§cAn error occured");
-            return;
-        }
-        
+    {        
         if ($forceFromDatabase || !$this->getServer()->getPlayerExact($player) instanceof Player)
         {
             $promise = new PromiseResolver();
@@ -867,6 +858,16 @@ class BankUI extends PluginBase implements Listener{
         else
         {
             $promise = new PromiseResolver();
+            
+            if (!array_key_exists($player, $this->playersMoney) || !isset($this->playersMoney[$player])) $this->createLoadData($this->getServer()->getPlayerExact($player));
+
+             if (!array_key_exists($player, $this->playersMoney) || !isset($this->playersMoney[$player]))
+            {
+                $this->getServer()->getPlayerExact($player)->sendMessage("§cAn error occured");
+                $promise->resolve((float)0);
+                return $promise->getPromise();
+            }
+            
             $promise->resolve((float)$this->playersMoney[$player]);
             return $promise->getPromise();
         }
