@@ -918,6 +918,7 @@ class BankUI extends PluginBase implements Listener{
 
     public function saveData(Player $player, $removeFromArray = false)
     {
+        if (!array_key_exists($player->getName(), $this->playersMoney) || !isset($this->playersMoney[$player->getName()])) return;
         if (!isset($this->playersTransactions[$player->getName()]) || is_null($this->playersTransactions[$player->getName()])) $transactions = "";
         else $transactions = $this->playersTransactions[$player->getName()];
         $this->setMoney($player->getName(), $this->playersMoney[$player->getName()], true);
