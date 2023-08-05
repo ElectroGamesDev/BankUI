@@ -199,15 +199,7 @@ class BankUI extends PluginBase implements Listener{
     public function onJoin(PlayerJoinEvent $event){
 
         $player = $event->getPlayer();
-        $this->accountExists($player->getName())->onCompletion(function(bool $exists) use ($player) : void{
-            if (!$exists)
-            {
-                $this->createAccount($player->getName());
-                $this->playersMoney[$player->getName()] = 0;
-                $this->playersTransactions[$player->getName()] = "";
-            }
-            else $this->loadData($player);
-        }, static fn() => null);
+        $this->createLoadData($player);
     }
 
     public function createAccount(string $player, $money = 0, $transactions = "")
@@ -854,6 +846,15 @@ class BankUI extends PluginBase implements Listener{
 
     public function getMoney(string $player, bool $forceFromDatabase = false)
     {
+        if (!array_key_exists($player->getName(), $this->playersMoney) || !isset($this->playersMoney[$player->getName()]))
+            $this->createLoadData($this->getServer()->getPlayerExact($player));
+
+         if (!array_key_exists($player->getName(), $this->playersMoney) || !isset($this->playersMoney[$player->getName()]))
+        {
+            $player->sendMessage("§cAn error occured");
+            return;
+        }
+        
         if ($forceFromDatabase || !$this->getServer()->getPlayerExact($player) instanceof Player)
         {
             $promise = new PromiseResolver();
@@ -941,6 +942,19 @@ class BankUI extends PluginBase implements Listener{
             $this->setTransactions($player, $transactions, true);
             if ($removeFromArray) unset($this->playersTransactions[$player]);
         }
+    }
+
+    public function createLoadData(Player $player)
+    {
+        $this->accountExists($player->getName())->onCompletion(function(bool $exists) use ($player) : void{
+            if (!$exists)
+            {
+                $this->createAccount($player->getName());
+                $this->playersMoney[$player->getName()] = 0;
+                $this->playersTransactions[$player->getName()] = "";
+            }
+            else $this->loadData($player);
+        }, static fn() => null);
     }
 
     public function loadData(Player $player)
