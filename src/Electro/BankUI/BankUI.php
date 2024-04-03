@@ -543,6 +543,7 @@ class BankUI extends PluginBase implements Listener{
                     }
                     $player->sendMessage(str_replace("{amount}", $data[1], $this->messages["Withdraw"]));
                     $this->addTransaction($player->getName(), str_replace("{amount}", $data[1], $this->messages["WithdrawTransaction"]));
+                    $this->takeMoney($player->getName(), $data[1]);
                 }, static fn() => null);
             }, static fn() => null);
         });
