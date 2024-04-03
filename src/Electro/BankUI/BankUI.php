@@ -636,12 +636,15 @@ class BankUI extends PluginBase implements Listener{
                 return true;
             }
 
+            if (!is_numeric($data[1])) {
+                $player->sendMessage($this->messages["InvalidAmount"]);
+                return;
+            }
+
             $data[1] = ceil($data[1]);
             $this->takeEconomyMoney($player->getName(),$data[1])->onCompletion(function (bool $updated) use ($data, $player): void{
                 if (!$updated) {
-                    if (!is_numeric($data[1])) {
-                        $player->sendMessage($this->messages["InvalidAmount"]);
-                    } else if ($data[1] <= 0) {
+                    if ($data[1] <= 0) {
                         $player->sendMessage("§cYou must enter an amount greater than 0");
                         $player->sendMessage($this->messages["NoNegativeNumbers"]);
                     } else {
