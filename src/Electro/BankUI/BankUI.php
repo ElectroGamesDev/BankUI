@@ -517,7 +517,7 @@ class BankUI extends PluginBase implements Listener{
             }
 
             if (!is_numeric($data[1])) {
-                $this->addTransaction($player->getName(), $this->messages["InvalidAmount"]);
+                $player->sendMessage($this->messages["InvalidAmount"]);
                 return;
             }
 
@@ -536,7 +536,7 @@ class BankUI extends PluginBase implements Listener{
                     $player->sendMessage($this->messages["NoNegativeNumbers"]);
                     return;
                 }
-                $this->addEconomyMoney($player->getName(),$money)->onCompletion(function (bool $updated) use ($data, $player): void{
+                $this->addEconomyMoney($player->getName(), $data[1])->onCompletion(function (bool $updated) use ($data, $player): void{
                     if (!$updated) {
                         $player->sendMessage("§cAn error occurred");
                         return;
