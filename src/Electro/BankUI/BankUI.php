@@ -515,6 +515,12 @@ class BankUI extends PluginBase implements Listener{
             if ($data === null) {
                 return true;
             }
+
+            if (!is_numeric($data[1])) {
+                $this->addTransaction($player->getName(), $this->messages["InvalidAmount"]);
+                return;
+            }
+
             $data[1] = ceil($data[1]);
 
             $this->getMoney($player->getName())->onCompletion(function(float $money) use ($player, $data): void{
@@ -524,10 +530,6 @@ class BankUI extends PluginBase implements Listener{
                 }
                 if ($money < $data[1]){
                     $player->sendMessage(str_replace("{amount}", $data[1], $this->messages["WithdrawNotEnoughMoney"]));
-                    return;
-                }
-                if (!is_numeric($data[1])){
-                    $this->addTransaction($player->getName(), $this->messages["InvalidAmount"]);
                     return;
                 }
                 if ($data[1] <= 0){
