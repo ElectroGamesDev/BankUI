@@ -515,6 +515,12 @@ class BankUI extends PluginBase implements Listener{
             if ($data === null) {
                 return true;
             }
+
+            if (!is_numeric($data[1])) {
+                $player->sendMessage($this->messages["InvalidAmount"]);
+                return;
+            }
+
             $data[1] = ceil($data[1]);
 
             $this->getMoney($player->getName())->onCompletion(function(float $money) use ($player, $data): void{
@@ -526,21 +532,18 @@ class BankUI extends PluginBase implements Listener{
                     $player->sendMessage(str_replace("{amount}", $data[1], $this->messages["WithdrawNotEnoughMoney"]));
                     return;
                 }
-                if (!is_numeric($data[1])){
-                    $this->addTransaction($player->getName(), $this->messages["InvalidAmount"]);
-                    return;
-                }
                 if ($data[1] <= 0){
                     $player->sendMessage($this->messages["NoNegativeNumbers"]);
                     return;
                 }
-                $this->addEconomyMoney($player->getName(),$money)->onCompletion(function (bool $updated) use ($data, $player): void{
+                $this->addEconomyMoney($player->getName(), $data[1])->onCompletion(function (bool $updated) use ($data, $player): void{
                     if (!$updated) {
                         $player->sendMessage("§cAn error occurred");
                         return;
                     }
                     $player->sendMessage(str_replace("{amount}", $data[1], $this->messages["Withdraw"]));
                     $this->addTransaction($player->getName(), str_replace("{amount}", $data[1], $this->messages["WithdrawTransaction"]));
+                    $this->takeMoney($player->getName(), $data[1]);
                 }, static fn() => null);
             }, static fn() => null);
         });
@@ -634,12 +637,15 @@ class BankUI extends PluginBase implements Listener{
                 return true;
             }
 
+            if (!is_numeric($data[1])) {
+                $player->sendMessage($this->messages["InvalidAmount"]);
+                return;
+            }
+
             $data[1] = ceil($data[1]);
             $this->takeEconomyMoney($player->getName(),$data[1])->onCompletion(function (bool $updated) use ($data, $player): void{
                 if (!$updated) {
-                    if (!is_numeric($data[1])) {
-                        $player->sendMessage($this->messages["InvalidAmount"]);
-                    } else if ($data[1] <= 0) {
+                    if ($data[1] <= 0) {
                         $player->sendMessage("§cYou must enter an amount greater than 0");
                         $player->sendMessage($this->messages["NoNegativeNumbers"]);
                     } else {
