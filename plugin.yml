@@ -1,6 +1,6 @@
 main : Electro\BankUI\BankUI
 name: BankUI
-version: 5.0.0
+version: 6.0.0
 api: 5.0.0
 Author: Electro
 depend: ["BedrockEconomy"]
