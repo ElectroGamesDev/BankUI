@@ -58,7 +58,6 @@ class BankUI extends PluginBase implements Listener{
         if ($this->getConfig()->get("config-ver") !== $this->configVersion)
         {
             $this->updateConfig();
-
             $this->getLogger()->critical("BankUI's config has been updated automatically but your changes has been reset so you will need to reconfigure it!");
         }
 
